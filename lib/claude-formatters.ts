@@ -27,11 +27,10 @@ const BASE_URL = "https://frivillig-db.iverfinne.no"
 
 /**
  * Generate organization page URL
- * Prefers slug over ID for cleaner URLs
+ * CRITICAL: Always uses ID (UUID) - this is the actual route format
  */
 export function getOrganizationUrl(org: Organization): string {
-  const identifier = org.slug || org.id
-  return `${BASE_URL}/organisasjon/${identifier}`
+  return `${BASE_URL}/organisasjon/${org.id}`
 }
 
 /**
@@ -271,11 +270,12 @@ export function formatToolResultForClaude(
 
   let instruction = `Search completed. Found ${total} organizations. `
   instruction += `Presenting ${organizations.length} results.\n\n`
-  instruction += `CRITICAL INSTRUCTIONS FOR PRESENTATION:\n`
-  instruction += `1. Format each organization as a clickable markdown link: **[Name](https://frivillig-db.iverfinne.no/organisasjon/{slug})**\n`
-  instruction += `2. NEVER show raw data (IDs, slugs, JSON)\n`
-  instruction += `3. Use the formatters provided or follow the templates exactly\n`
-  instruction += `4. Make responses engaging and user-friendly\n\n`
+  instruction += `⚠️ CRITICAL INSTRUCTIONS FOR PRESENTATION ⚠️\n`
+  instruction += `1. EVERY organization MUST be a clickable markdown hyperlink: **[Name](https://frivillig-db.iverfinne.no/organisasjon/{id})**\n`
+  instruction += `2. Use the 'id' field (UUID) in the URL - NOT the slug field\n`
+  instruction += `3. NEVER show raw data (IDs, UUIDs, slugs, JSON) to users\n`
+  instruction += `4. NEVER mention organizations without hyperlinks - NO EXCEPTIONS\n`
+  instruction += `5. Make responses engaging and user-friendly in Norwegian\n\n`
   instruction += `---\n\n`
   instruction += `Raw data for formatting:\n\n`
   instruction += JSON.stringify({ data: organizations, meta }, null, 2)

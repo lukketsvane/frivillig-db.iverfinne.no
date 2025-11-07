@@ -4,9 +4,12 @@
  * This file demonstrates how to register and use the searchOrganizations
  * custom tool with the Anthropic Claude API.
  *
- * IMPORTANT: When Claude returns results, it will automatically format them
- * as clickable links to https://frivillig-db.iverfinne.no/organisasjon/{slug}
- * based on the instructions in the tool schema.
+ * ⚠️ CRITICAL: When Claude returns results, it will automatically format them
+ * as clickable hyperlinks to https://frivillig-db.iverfinne.no/organisasjon/{id}
+ * where {id} is the UUID from the 'id' field.
+ *
+ * EVERY organization mention MUST be a hyperlink. NO EXCEPTIONS.
+ * Based on the explicit instructions in the tool schema.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
@@ -409,7 +412,7 @@ API Returns:
 {
   "data": [
     {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "id": "b409f77a-3e74-49f6-bd9a-9f135ecd7deb",
       "navn": "Bergen Idrettslag",
       "slug": "bergen-idrettslag",
       "aktivitet": "Fotball, håndball og ski for barn og ungdom",
@@ -419,7 +422,7 @@ API Returns:
       "epost": "post@bergen-il.no",
       "telefon": "55123456"
     },
-    ... (4 more)
+    ... (4 more with UUIDs)
   ],
   "meta": {
     "total": 23,
@@ -432,23 +435,23 @@ Claude Response (CORRECT FORMAT):
 
 Jeg fant 23 idrettsklubber i Bergen som jobber med ungdom. Her er de 5 mest relevante:
 
-1. **[Bergen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/bergen-idrettslag)**
+1. **[Bergen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/b409f77a-3e74-49f6-bd9a-9f135ecd7deb)**
    Fotball, håndball og ski for barn og ungdom
    📍 Bergen, Vestland
 
-2. **[Fana Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/fana-idrettslag)**
+2. **[Fana Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/a3c8e44f-9b21-4e7d-8f32-1a7b9c6d4e2f)**
    Allsidig idrettsklubb med fokus på barne- og ungdomsidrett
    📍 Bergen, Vestland
 
-3. **[Bergen Svømmeklubb](https://frivillig-db.iverfinne.no/organisasjon/bergen-svommeklubb)**
+3. **[Bergen Svømmeklubb](https://frivillig-db.iverfinne.no/organisasjon/c5d9f88e-4a32-4b6c-9e1a-8b7c5d3e1f4a)**
    Svømmetrening for alle aldre fra 6 år
    📍 Bergen, Vestland
 
-4. **[Tertnes Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/tertnes-idrettslag)**
+4. **[Tertnes Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/d7e1g99f-5b43-5c7d-0f2b-9c8d6e4f2g5b)**
    Fotball, volleyball og turn for barn
    📍 Bergen, Vestland
 
-5. **[Fyllingsdalen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/fyllingsdalen-idrettslag)**
+5. **[Fyllingsdalen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/e8f2h00g-6c54-6d8e-1g3c-0d9e7f5g3h6c)**
    Fotball og håndball med sterkt barneprogram
    📍 Bergen, Vestland
 
@@ -458,20 +461,22 @@ Vil du vite mer om noen av disse? Klikk på navnet for å se full info, kontaktd
 
 ---
 
-KEY POINTS:
-✅ Each organization name is a clickable markdown link
-✅ Links use full URL: https://frivillig-db.iverfinne.no/organisasjon/{slug}
-✅ No raw data (IDs, JSON) shown to user
+⚠️ CRITICAL REQUIREMENTS:
+✅ Each organization name is a clickable markdown hyperlink
+✅ Links use UUID from 'id' field: https://frivillig-db.iverfinne.no/organisasjon/{id}
+✅ NEVER show raw UUIDs, IDs, or JSON to users
+✅ EVERY organization mention = hyperlink (NO EXCEPTIONS)
 ✅ Emojis used for visual hierarchy
 ✅ "See all" link provided for pagination
 ✅ User-friendly Norwegian language
 ✅ Clean, scannable formatting
 
-INCORRECT FORMATS TO AVOID:
-❌ "Bergen Idrettslag (ID: 123e4567-e89b-12d3-a456-426614174000)"
-❌ "View at: frivillig-db.iverfinne.no/organisasjon/bergen-idrettslag" (no clickable link)
+❌ INCORRECT FORMATS (NEVER DO THIS):
+❌ "Bergen Idrettslag (ID: b409f77a-3e74-49f6-bd9a-9f135ecd7deb)" - NEVER show UUIDs!
+❌ "Bergen Idrettslag" without a hyperlink - NEVER do this!
+❌ "View at: frivillig-db.iverfinne.no/organisasjon/..." (not a clickable link)
 ❌ Raw JSON output
-❌ Showing 'slug' field to users
+❌ Using 'slug' in URLs instead of 'id'
 
 =================================================================
   `)
