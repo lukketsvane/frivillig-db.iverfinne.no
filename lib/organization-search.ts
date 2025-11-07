@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
 import { searchVectorStore, extractOrganizationIds } from "@/lib/vector-search"
-import { findOrganizationByOrgnr } from "@/lib/json-search"
 
 export interface Organization {
   id: string
@@ -277,29 +276,11 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
 }
 
 /**
- * Hent organisasjon basert på organisasjonsnummer OR UUID
- * Prøver JSON-database først, så Supabase som fallback
+ * Hent organisasjon basert på organisasjonsnummer OR UUID frå Supabase
  */
 export async function getOrganizationById(idOrOrgnr: string): Promise<Organization | null> {
-  // Sjekk om det er organisasjonsnummer (9 siffer) eller UUID (36 teikn)
   const isOrgnr = /^\d{9}$/.test(idOrOrgnr)
 
-  if (isOrgnr) {
-    // Prøv å finne i JSON-databasen først
-    try {
-      const jsonOrg = await findOrganizationByOrgnr(idOrOrgnr)
-      if (jsonOrg) {
-        return {
-          ...(jsonOrg as Organization),
-          forretningsadresse_adresse: normalizeBusinessAddress(jsonOrg.forretningsadresse_adresse),
-        }
-      }
-    } catch {
-      // Fortsett til Supabase fallback
-    }
-  }
-
-  // Fallback til Supabase (for UUID eller om JSON-søk feilar)
   try {
     const supabase = await createClient()
 
@@ -331,7 +312,6 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
         registreringsdato_frivillighetsregisteret
       `)
 
-    // Søk etter enten UUID eller organisasjonsnummer
     const { data, error } = await (isOrgnr
       ? query.eq("organisasjonsnummer", idOrOrgnr).single()
       : query.eq("id", idOrOrgnr).single())
