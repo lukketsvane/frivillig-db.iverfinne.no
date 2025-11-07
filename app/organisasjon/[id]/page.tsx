@@ -1,4 +1,4 @@
-import { getOrganizationById } from "@/lib/organization-search"
+import { getOrganizationById, normalizeBusinessAddress } from "@/lib/organization-search"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
@@ -51,6 +51,8 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
     notFound()
   }
 
+  const businessAddressLines = normalizeBusinessAddress(organization.forretningsadresse_adresse)
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -97,13 +99,12 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
                   <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <p className="text-foreground">
-                      {organization.forretningsadresse_adresse &&
-                        organization.forretningsadresse_adresse.length > 0 && (
-                          <>
-                            {organization.forretningsadresse_adresse.join(", ")}
-                            <br />
-                          </>
-                        )}
+                      {businessAddressLines.length > 0 && (
+                        <>
+                          {businessAddressLines.join(", ")}
+                          <br />
+                        </>
+                      )}
                       {organization.forretningsadresse_postnummer && <>{organization.forretningsadresse_postnummer} </>}
                       {organization.forretningsadresse_poststed}
                     </p>
