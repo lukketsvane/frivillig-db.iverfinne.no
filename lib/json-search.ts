@@ -152,7 +152,15 @@ export async function searchOrganizationsJSON(options: {
  */
 export async function findOrganizationByOrgnr(orgnr: string): Promise<Organization | null> {
   const allOrgs = await loadAllOrganizations()
-  return allOrgs.find((org) => org.organisasjonsnummer === orgnr) || null
+  // Match både som string og number (JSON-fila kan ha begge format)
+  return (
+    allOrgs.find(
+      (org) =>
+        org.organisasjonsnummer === orgnr ||
+        org.organisasjonsnummer?.toString() === orgnr ||
+        org.organisasjonsnummer === parseInt(orgnr, 10),
+    ) || null
+  )
 }
 
 /**

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { searchVectorStore, extractOrganizationIds } from "@/lib/vector-search"
+import { findOrganizationByOrgnr } from "@/lib/json-search"
 
 export interface Organization {
   id: string
@@ -225,10 +226,29 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
   }
 }
 
-export async function getOrganizationById(id: string): Promise<Organization | null> {
+/**
+ * Hent organisasjon basert på organisasjonsnummer OR UUID
+ * Prøver JSON-database først, så Supabase som fallback
+ */
+export async function getOrganizationById(idOrOrgnr: string): Promise<Organization | null> {
+  // Sjekk om det er organisasjonsnummer (9 siffer) eller UUID (36 teikn)
+  const isOrgnr = /^\d{9}$/.test(idOrOrgnr)
+
+  if (isOrgnr) {
+    // Prøv å finne i JSON-databasen først
+    console.log(`[v0] Looking up by organisasjonsnummer: ${idOrOrgnr}`)
+    const jsonOrg = await findOrganizationByOrgnr(idOrOrgnr)
+    if (jsonOrg) {
+      console.log(`[v0] Found in JSON database: ${jsonOrg.navn}`)
+      return jsonOrg as Organization
+    }
+  }
+
+  // Fallback til Supabase (for UUID eller om JSON-søk feilar)
+  console.log(`[v0] Falling back to Supabase for: ${idOrOrgnr}`)
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("organizations")
     .select(`
       id,
@@ -255,8 +275,11 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
       stiftelsesdato,
       registreringsdato_frivillighetsregisteret
     `)
-    .eq("id", id)
-    .single()
+
+  // Søk etter enten UUID eller organisasjonsnummer
+  const { data, error } = await (isOrgnr
+    ? query.eq("organisasjonsnummer", idOrOrgnr).single()
+    : query.eq("id", idOrOrgnr).single())
 
   if (error) {
     console.error("[v0] Error fetching organization:", error)
@@ -298,7 +321,6 @@ export function formatOrganizationResult(org: Organization): string {
 
 export function formatOrganizationForChat(org: Organization): string {
   let result = `\n**${org.navn}**\n`
-  result += `ID: ${org.id}\n`
 
   if (org.aktivitet) {
     result += `Aktivitet: ${org.aktivitet.substring(0, 150)}${org.aktivitet.length > 150 ? "..." : ""}\n`
@@ -324,7 +346,9 @@ export function formatOrganizationForChat(org: Organization): string {
     result += `E-post: ${org.epost}\n`
   }
 
-  result += `Les meir: /organisasjon/${org.id}\n`
+  // Bruk organisasjonsnummer i URL
+  const urlId = org.organisasjonsnummer || org.id
+  result += `Les meir: /organisasjon/${urlId}\n`
 
   return result
 }
@@ -343,7 +367,8 @@ export interface OrganizationCardData {
 
 export function createOrganizationCards(organizations: Organization[]): OrganizationCardData[] {
   return organizations.map((org) => ({
-    id: org.id,
+    // Bruk organisasjonsnummer som ID for klikkbare kort
+    id: org.organisasjonsnummer || org.id,
     navn: org.navn,
     aktivitet: org.aktivitet,
     formaal: org.vedtektsfestet_formaal,

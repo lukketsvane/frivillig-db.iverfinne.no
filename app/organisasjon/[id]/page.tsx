@@ -19,9 +19,10 @@ export async function generateStaticParams() {
   // Resten handterast dynamisk med ISR
   const { data: organizations, error } = await supabase
     .from("organizations_with_fylke")
-    .select("id")
+    .select("organisasjonsnummer")
     .eq("registrert_i_frivillighetsregisteret", true)
     .not("hjemmeside", "is", null) // Prioriter org med nettside
+    .not("organisasjonsnummer", "is", null) // Må ha organisasjonsnummer
     .order("antall_ansatte", { ascending: false, nullsLast: true })
     .limit(1000) // Generer 1000 mest relevante først
 
@@ -34,7 +35,7 @@ export async function generateStaticParams() {
 
   return (
     organizations?.map((org) => ({
-      id: org.id,
+      id: org.organisasjonsnummer.toString(), // Bruk organisasjonsnummer som ID
     })) || []
   )
 }
