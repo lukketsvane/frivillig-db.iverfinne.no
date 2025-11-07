@@ -23,6 +23,7 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
       `
       id,
       navn,
+      organisasjonsnummer,
       aktivitet,
       vedtektsfestet_formaal,
       forretningsadresse_poststed,
