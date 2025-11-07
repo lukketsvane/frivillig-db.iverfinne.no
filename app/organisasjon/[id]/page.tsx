@@ -51,6 +51,37 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
     notFound()
   }
 
+  const businessAddressLines = (() => {
+    const raw = organization.forretningsadresse_adresse
+
+    if (!raw) {
+      return [] as string[]
+    }
+
+    if (Array.isArray(raw)) {
+      return raw.filter((line): line is string => Boolean(line && line.trim()))
+    }
+
+    if (typeof raw === "string") {
+      const trimmed = raw.trim()
+
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) {
+            return parsed.filter((line): line is string => typeof line === "string" && line.trim().length > 0)
+          }
+        } catch (error) {
+          console.warn("[v0] Failed to parse business address lines", error)
+        }
+      }
+
+      return trimmed.length > 0 ? [trimmed] : []
+    }
+
+    return [] as string[]
+  })()
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -97,13 +128,12 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
                   <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <p className="text-foreground">
-                      {organization.forretningsadresse_adresse &&
-                        organization.forretningsadresse_adresse.length > 0 && (
-                          <>
-                            {organization.forretningsadresse_adresse.join(", ")}
-                            <br />
-                          </>
-                        )}
+                      {businessAddressLines.length > 0 && (
+                        <>
+                          {businessAddressLines.join(", ")}
+                          <br />
+                        </>
+                      )}
                       {organization.forretningsadresse_postnummer && <>{organization.forretningsadresse_postnummer} </>}
                       {organization.forretningsadresse_poststed}
                     </p>
