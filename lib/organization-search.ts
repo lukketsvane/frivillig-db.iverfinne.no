@@ -286,62 +286,66 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
 
   if (isOrgnr) {
     // Prøv å finne i JSON-databasen først
-    console.log(`[v0] Looking up by organisasjonsnummer: ${idOrOrgnr}`)
-    const jsonOrg = await findOrganizationByOrgnr(idOrOrgnr)
-    if (jsonOrg) {
-      console.log(`[v0] Found in JSON database: ${jsonOrg.navn}`)
-      return {
-        ...(jsonOrg as Organization),
-        forretningsadresse_adresse: normalizeBusinessAddress(jsonOrg.forretningsadresse_adresse),
+    try {
+      const jsonOrg = await findOrganizationByOrgnr(idOrOrgnr)
+      if (jsonOrg) {
+        return {
+          ...(jsonOrg as Organization),
+          forretningsadresse_adresse: normalizeBusinessAddress(jsonOrg.forretningsadresse_adresse),
+        }
       }
+    } catch {
+      // Fortsett til Supabase fallback
     }
   }
 
   // Fallback til Supabase (for UUID eller om JSON-søk feilar)
-  console.log(`[v0] Falling back to Supabase for: ${idOrOrgnr}`)
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const query = supabase
-    .from("organizations")
-    .select(`
-      id,
-      organisasjonsnummer,
-      navn,
-      organisasjonsform_beskrivelse,
-      naeringskode1_beskrivelse,
-      naeringskode2_beskrivelse,
-      naeringskode3_beskrivelse,
-      aktivitet,
-      vedtektsfestet_formaal,
-      forretningsadresse_poststed,
-      forretningsadresse_kommune,
-      forretningsadresse_adresse,
-      forretningsadresse_postnummer,
-      postadresse_poststed,
-      postadresse_postnummer,
-      postadresse_adresse,
-      hjemmeside,
-      epost,
-      telefon,
-      mobiltelefon,
-      antall_ansatte,
-      stiftelsesdato,
-      registreringsdato_frivillighetsregisteret
-    `)
+    const query = supabase
+      .from("organizations")
+      .select(`
+        id,
+        organisasjonsnummer,
+        navn,
+        organisasjonsform_beskrivelse,
+        naeringskode1_beskrivelse,
+        naeringskode2_beskrivelse,
+        naeringskode3_beskrivelse,
+        aktivitet,
+        vedtektsfestet_formaal,
+        forretningsadresse_poststed,
+        forretningsadresse_kommune,
+        forretningsadresse_adresse,
+        forretningsadresse_postnummer,
+        postadresse_poststed,
+        postadresse_postnummer,
+        postadresse_adresse,
+        hjemmeside,
+        epost,
+        telefon,
+        mobiltelefon,
+        antall_ansatte,
+        stiftelsesdato,
+        registreringsdato_frivillighetsregisteret
+      `)
 
-  // Søk etter enten UUID eller organisasjonsnummer
-  const { data, error } = await (isOrgnr
-    ? query.eq("organisasjonsnummer", idOrOrgnr).single()
-    : query.eq("id", idOrOrgnr).single())
+    // Søk etter enten UUID eller organisasjonsnummer
+    const { data, error } = await (isOrgnr
+      ? query.eq("organisasjonsnummer", idOrOrgnr).single()
+      : query.eq("id", idOrOrgnr).single())
 
-  if (error) {
-    console.error("[v0] Error fetching organization:", error)
+    if (error) {
+      return null
+    }
+
+    return {
+      ...(data as Organization),
+      forretningsadresse_adresse: normalizeBusinessAddress(data?.forretningsadresse_adresse),
+    }
+  } catch {
     return null
-  }
-
-  return {
-    ...(data as Organization),
-    forretningsadresse_adresse: normalizeBusinessAddress(data?.forretningsadresse_adresse),
   }
 }
 
