@@ -119,7 +119,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg. 
+  const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg.
 
 Du kommuniserer på nynorsk og gir direkte, konkrete svar.
 
