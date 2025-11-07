@@ -4,6 +4,7 @@ import { MapPin, Activity, Target } from "lucide-react"
 
 interface Organization {
   id: string
+  organisasjonsnummer?: string | null
   navn: string
   aktivitet?: string
   vedtektsfestet_formaal?: string
@@ -19,7 +20,11 @@ export function OrganizationGrid({ organizations }: { organizations: Organizatio
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {organizations.map((org) => (
-        <Link key={org.id} href={`/organisasjon/${org.id}`} className="group">
+        <Link
+          key={org.organisasjonsnummer ?? org.id}
+          href={`/organisasjon/${org.organisasjonsnummer ?? org.id}`}
+          className="group"
+        >
           <Card className="h-full hover:border-foreground/20 transition-all hover:shadow-md">
             <CardHeader>
               <CardTitle className="text-lg group-hover:text-foreground/80 transition-colors line-clamp-2">
