@@ -14,7 +14,7 @@ export interface Organization {
   vedtektsfestet_formaal: string
   forretningsadresse_poststed: string
   forretningsadresse_kommune: string
-  forretningsadresse_adresse: string
+  forretningsadresse_adresse?: string | string[] | null
   forretningsadresse_postnummer: string
   postadresse_poststed: string
   postadresse_postnummer: string
