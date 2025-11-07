@@ -59,6 +59,50 @@ function calculateLocationPriority(
   return 4 // Andre plassar
 }
 
+export function normalizeBusinessAddress(raw: unknown): string[] {
+  if (!raw) {
+    return []
+  }
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter((value): value is string => value.length > 0)
+  }
+
+  if (typeof raw === "string") {
+    const trimmed = raw.trim()
+
+    if (!trimmed) {
+      return []
+    }
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((value) => (typeof value === "string" ? value.trim() : ""))
+            .filter((value): value is string => value.length > 0)
+        }
+      } catch (error) {
+        console.warn("[v0] Failed to parse serialized business address", error)
+      }
+    }
+
+    return [trimmed]
+  }
+
+  if (typeof raw === "object") {
+    const values = Object.values(raw as Record<string, unknown>)
+    return values
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter((value): value is string => value.length > 0)
+  }
+
+  return []
+}
+
 export async function searchOrganizations(params: SearchParams): Promise<Organization[]> {
   const supabase = await createClient()
 
@@ -98,7 +142,10 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     return []
   }
 
-  let organizations = data as Organization[]
+  let organizations = (data as Organization[]).map((org) => ({
+    ...org,
+    forretningsadresse_adresse: normalizeBusinessAddress(org.forretningsadresse_adresse),
+  }))
 
   if (params.userPostnummer || params.userKommune || params.userFylke) {
     organizations = organizations.sort((a, b) => {
@@ -193,7 +240,10 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
       return searchOrganizations(params)
     }
 
-    let organizations = data as Organization[]
+    let organizations = (data as Organization[]).map((org) => ({
+      ...org,
+      forretningsadresse_adresse: normalizeBusinessAddress(org.forretningsadresse_adresse),
+    }))
     console.log("[v0] Fetched organizations from DB:", organizations.length)
 
     if (organizations.length === 0) {
@@ -240,7 +290,10 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
     const jsonOrg = await findOrganizationByOrgnr(idOrOrgnr)
     if (jsonOrg) {
       console.log(`[v0] Found in JSON database: ${jsonOrg.navn}`)
-      return jsonOrg as Organization
+      return {
+        ...(jsonOrg as Organization),
+        forretningsadresse_adresse: normalizeBusinessAddress(jsonOrg.forretningsadresse_adresse),
+      }
     }
   }
 
@@ -286,7 +339,10 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
     return null
   }
 
-  return data as Organization
+  return {
+    ...(data as Organization),
+    forretningsadresse_adresse: normalizeBusinessAddress(data?.forretningsadresse_adresse),
+  }
 }
 
 export function formatOrganizationResult(org: Organization): string {
