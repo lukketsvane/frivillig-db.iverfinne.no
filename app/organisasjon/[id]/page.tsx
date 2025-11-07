@@ -15,48 +15,32 @@ interface OrganizationPageProps {
 export async function generateStaticParams() {
   const supabase = createStaticClient()
 
-  // Hent ALLE organisasjonar frå databasen
-  const allOrganizations: any[] = []
-  let offset = 0
-  const batchSize = 10000
+  // Strategi: Generer statiske sider for dei mest brukte/populære organisasjonane
+  // Resten handterast dynamisk med ISR
+  const { data: organizations, error } = await supabase
+    .from("organizations_with_fylke")
+    .select("id")
+    .eq("registrert_i_frivillighetsregisteret", true)
+    .not("hjemmeside", "is", null) // Prioriter org med nettside
+    .order("antall_ansatte", { ascending: false, nullsLast: true })
+    .limit(1000) // Generer 1000 mest relevante først
 
-  console.log("[v0] Starting to fetch ALL organization IDs for static generation...")
-
-  while (true) {
-    const { data: batch, error } = await supabase
-      .from("organizations_with_fylke")
-      .select("id")
-      .range(offset, offset + batchSize - 1)
-
-    if (error) {
-      console.error(`[v0] Error fetching batch at offset ${offset}:`, error)
-      break
-    }
-
-    if (!batch || batch.length === 0) {
-      break
-    }
-
-    allOrganizations.push(...batch)
-    console.log(`[v0] Fetched batch: ${batch.length} organizations (total: ${allOrganizations.length})`)
-
-    if (batch.length < batchSize) {
-      break // No more data
-    }
-
-    offset += batchSize
+  if (error) {
+    console.error("[v0] Error fetching organization IDs for static generation:", error)
+    return []
   }
 
-  console.log(`[v0] Total organizations for static generation: ${allOrganizations.length}`)
+  console.log(`[v0] Generating static params for ${organizations?.length || 0} organizations`)
 
-  return allOrganizations.map((org) => ({
-    id: org.id,
-  }))
+  return (
+    organizations?.map((org) => ({
+      id: org.id,
+    })) || []
+  )
 }
 
-export const dynamic = "force-static"
-export const dynamicParams = false // Berre tillat føregenererte sider
-export const revalidate = 86400 // Revalidate kvar 24 timer
+export const dynamicParams = true
+export const revalidate = 3600 // Revalidate every hour
 
 export default async function OrganizationPage({ params }: OrganizationPageProps) {
   const { id } = await params

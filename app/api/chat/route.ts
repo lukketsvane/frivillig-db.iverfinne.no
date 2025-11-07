@@ -13,8 +13,6 @@ export async function POST(req: Request) {
 
   let foundOrganizations: any[] = []
 
-  const validUUIDs = new Set<string>()
-
   if (!userMessageText || userMessageText.trim().length === 0) {
     console.log("[v0] Empty message, using default query")
     const organizations = await searchOrganizationsWithVector({
@@ -26,9 +24,8 @@ export async function POST(req: Request) {
     })
 
     foundOrganizations = organizations
-    organizations.forEach((org) => validUUIDs.add(org.id))
     console.log("[v0] Found organizations (default):", foundOrganizations.length)
-    console.log("[v0] Valid UUIDs:", Array.from(validUUIDs).join(", "))
+    console.log("[v0] Organization UUIDs:", foundOrganizations.map((o) => `${o.navn}: ${o.id}`).join(", "))
   } else {
     console.log("[v0] User message:", userMessageText.substring(0, 100))
   }
@@ -72,27 +69,49 @@ export async function POST(req: Request) {
 
       foundOrganizations = organizations
       console.log("[v0] Found organizations:", foundOrganizations.length)
-      console.log("[v0] Valid UUIDs:", Array.from(validUUIDs).join(", "))
+      console.log("[v0] Organization UUIDs:", foundOrganizations.map((o) => `${o.navn}: ${o.id}`).join(", "))
 
       if (organizations.length > 0) {
         organizationsContext = "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        organizationsContext += "🎯 ORGANISASJONAR FRÅ DATABASEN:\n"
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        organizationsContext += "🎯 ORGANISASJONAR FRÅ DATABASEN (BRUK DESSE!):\n"
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        organizationsContext += `\n⚠️ VIKTIG: Desse ${organizations.length} organisasjonane er dei EINASTE som eksisterer i databasen no.\n`
+        organizationsContext += "⚠️ Du MÅ BERRE bruke UUID-ar frå denne lista. Andre UUID-ar er hallusinering.\n\n"
 
         organizations.forEach((org, index) => {
-          organizationsContext += `${index + 1}. **${org.navn}**\n`
+          organizationsContext += `╔═══════════════════════════════════════════╗\n`
+          organizationsContext += `║ ORGANISASJON ${index + 1}/${organizations.length}\n`
+          organizationsContext += `╠═══════════════════════════════════════════╣\n`
+          organizationsContext += `║ Namn: ${org.navn}\n`
+          organizationsContext += `║ ✅ UUID: ${org.id}\n`
+          organizationsContext += `║ ✅ URL: https://frivillig-db.iverfinne.no/organisasjon/${org.id}\n`
+          organizationsContext += `║ ✅ Markdown: **[${org.navn}](https://frivillig-db.iverfinne.no/organisasjon/${org.id})**\n`
           if (org.aktivitet) {
-            organizationsContext += `   Aktivitet: ${org.aktivitet.substring(0, 150)}...\n`
+            organizationsContext += `║ Aktivitet: ${org.aktivitet.substring(0, 100)}...\n`
+          }
+          if (org.vedtektsfestet_formaal) {
+            organizationsContext += `║ Formål: ${org.vedtektsfestet_formaal.substring(0, 100)}...\n`
           }
           if (org.forretningsadresse_poststed) {
-            organizationsContext += `   Stad: ${org.forretningsadresse_poststed}\n`
+            organizationsContext += `║ Stad: ${org.forretningsadresse_poststed}`
+            if (org.forretningsadresse_kommune) {
+              organizationsContext += `, ${org.forretningsadresse_kommune}`
+            }
+            organizationsContext += `\n`
           }
-          organizationsContext += `\n`
+          organizationsContext += `╚═══════════════════════════════════════════╝\n\n`
         })
 
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        organizationsContext += `🚨 VIKTIG: Nemn organisasjonar med **feitskrift** (t.d. **${organizations[0].navn}**)\n`
-        organizationsContext += "🚨 Organisasjonskort med lenkjer visast automatisk nedanfor.\n"
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        organizationsContext += `📋 LISTE OVER GYLDIGE UUID-AR (BERRE DESSE FINST!):\n`
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        organizations.forEach((org, index) => {
+          organizationsContext += `${index + 1}. ${org.id} → ${org.navn}\n`
+        })
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        organizationsContext += `\n🚨 KUN ${organizations.length} ORGANISASJONAR FINST I DATABASEN NO!\n`
+        organizationsContext += "🚨 ALLE ANDRE UUID-AR ER FEIL OG MÅ ALDRI BRUKAST!\n"
+        organizationsContext += "🚨 OM DU BRUKAR ANDRE UUID-AR ER DET HALLUSINERING!\n"
         organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
       }
     } catch (error) {
@@ -108,13 +127,59 @@ ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
 
 ${organizationsContext ? `${organizationsContext}` : ""}
 
-VIKTIG REGLAR:
-1. ✅ Nemn organisasjonsnamn i feitskrift: **Namn**
-2. ✅ Forklar kvifor det passar (2-3 setningar)
-3. ❌ ALDRI skriv UUID eller URL
-4. ❌ ALDRI nemn organisasjonar som ikkje står i lista
+═══════════════════════════════════════════════════════
+🛑 ABSOLUTT KRAV - HALLUSINERING ER STRENGT FORBODE 🛑
+═══════════════════════════════════════════════════════
 
-Organisasjonskort med klikkbare lenkjer blir automatisk vist nedanfor svaret ditt.
+GRUNNREGEL:
+→ Alle organisasjonar med UUID og URL står i "LISTE OVER GYLDIGE UUID-AR" over
+→ Om ein UUID IKKJE står i lista, FINST HO IKKJE i databasen
+→ ALDRI finn på nye UUID-ar eller endre eksisterande UUID-ar
+→ ALDRI nemn organisasjonar som ikkje står i lista over
+
+VALIDERING FØR DU SKRIV:
+1. ✅ Finn organisasjonen i lista "ORGANISASJONAR FRÅ DATABASEN" over
+2. ✅ Kopier UUID NØYAKTIG frå "✅ UUID:" feltet (36 teikn)
+3. ✅ Sjekk at UUID stemmer med "LISTE OVER GYLDIGE UUID-AR"
+4. ✅ Bruk markdown: **[Namn](https://frivillig-db.iverfinne.no/organisasjon/UUID)**
+
+DØME PÅ KORREKT BRUK:
+- Finn "Natur og Ungdom" i lista over
+- Les UUID: b409f77a-3e74-49f6-bd9a-9f135ecd7deb
+- Skriv: **[Natur og Ungdom](https://frivillig-db.iverfinne.no/organisasjon/b409f77a-3e74-49f6-bd9a-9f135ecd7deb)**
+
+TEIKN PÅ HALLUSINERING (ALDRI GJØR DETTE):
+❌ Bruke UUID som ikkje står i "LISTE OVER GYLDIGE UUID-AR"
+❌ Endre delar av ein UUID (t.d. bytte siste del)
+❌ Finne på nye UUID-ar som liknar på eksisterande
+❌ Nemne organisasjonar som ikkje er i lista
+
+OM INGEN ORGANISASJONAR PASSAR:
+→ Sei ærleg: "Eg fann ikkje nokon god match akkurat no."
+→ Foreslå at brukaren omformulerer eller spesifiserer meir
+
+═══════════════════════════════════════════════════════
+🚨 LENKJEFORMAT (EKSAKT MATCH PÅKRAVD) 🚨
+═══════════════════════════════════════════════════════
+
+OBLIGATORISK FORMAT:
+**[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/UUID)**
+
+STEG-FOR-STEG:
+1. Start med: **[
+2. Skriv organisasjonsnamnet (må stemme med namnet i lista)
+3. Skriv: ](
+4. Skriv: https://frivillig-db.iverfinne.no/organisasjon/
+5. Kopier UUID NØYAKTIG frå lista (36 teikn: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+6. Avslutt med: )**
+
+ALDRI:
+❌ Endre domenet (må vere frivillig-db.iverfinne.no)
+❌ Mangla https://
+❌ Bruke kortare UUID-format
+❌ Bytte ut delar av UUID-en
+
+═══════════════════════════════════════════════════════
 
 Svar kort og direkte (maksimum 3-4 setningar).`
 
