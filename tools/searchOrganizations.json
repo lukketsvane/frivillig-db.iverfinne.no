@@ -1,6 +1,6 @@
 {
   "name": "searchOrganizations",
-  "description": "Search Norwegian volunteer organizations database with full-text search, location filtering, and relevance sorting. Returns structured organization data including contact info and activities. IMPORTANT: When presenting results to users, ALWAYS format each organization as a clickable card/link using the format https://frivillig-db.iverfinne.no/organisasjon/{slug} where {slug} is from the 'slug' field in the response. Present results as markdown links: [Organization Name](https://frivillig-db.iverfinne.no/organisasjon/{slug}). Server-side authenticated endpoint.",
+  "description": "Search Norwegian volunteer organizations database with full-text search, location filtering, and relevance sorting. Returns structured organization data including contact info and activities. ⚠️ CRITICAL REQUIREMENT ⚠️ When presenting results to users, you MUST ALWAYS format EVERY SINGLE organization mention as a clickable markdown hyperlink using the EXACT format: **[Organization Name](https://frivillig-db.iverfinne.no/organisasjon/{id})** where {id} is the UUID from the 'id' field. NEVER show organizations without hyperlinks. NEVER show raw data, IDs, or JSON. EVERY organization = clickable link. NO EXCEPTIONS. Server-side authenticated endpoint.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -98,15 +98,15 @@
             "id": {
               "type": "string",
               "format": "uuid",
-              "description": "Unique organization ID"
+              "description": "⚠️ CRITICAL: Unique organization UUID. YOU MUST USE THIS ID TO CREATE HYPERLINKS. Every organization MUST be presented as: **[{navn}](https://frivillig-db.iverfinne.no/organisasjon/{id})**. NEVER show this ID to users directly - only use it in the URL."
             },
             "navn": {
               "type": "string",
-              "description": "Organization name"
+              "description": "Organization name. MUST be displayed as a clickable hyperlink using the id field: **[{navn}](https://frivillig-db.iverfinne.no/organisasjon/{id})**"
             },
             "slug": {
               "type": "string",
-              "description": "URL-friendly slug for organization page. Use this to create clickable links: https://frivillig-db.iverfinne.no/organisasjon/{slug}"
+              "description": "URL-friendly slug (NOT USED FOR URLS - use 'id' field instead). This is only for display purposes."
             },
             "aktivitet": {
               "type": ["string", "null"],
@@ -274,13 +274,15 @@
     }
   ],
   "notes": [
+    "⚠️ ABSOLUTE CRITICAL REQUIREMENT ⚠️ EVERY SINGLE organization mention MUST be a clickable markdown hyperlink. Use this EXACT format: **[Organization Name](https://frivillig-db.iverfinne.no/organisasjon/{id})** where {id} is the UUID from the 'id' field. NO EXCEPTIONS.",
+    "⚠️ NEVER EVER show organizations without hyperlinks. NEVER show raw JSON, IDs, or database fields to users. If you mention an organization, it MUST be a clickable link.",
+    "✅ CORRECT EXAMPLE: '**[Bergen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/b409f77a-3e74-49f6-bd9a-9f135ecd7deb)** - Fotball og håndball for barn og ungdom i Bergen (Vestland)'",
+    "❌ WRONG: 'Bergen Idrettslag (ID: b409f77a-3e74-49f6-bd9a-9f135ecd7deb)' - NEVER do this!",
+    "❌ WRONG: 'Bergen Idrettslag' without a link - NEVER do this!",
+    "URL FORMAT: Always use https://frivillig-db.iverfinne.no/organisasjon/{id} where {id} is the UUID from the 'id' field (NOT the slug field).",
     "All organizations returned are registered in the Norwegian volunteer registry (registrert_i_frivillighetsregisteret=true).",
     "The 'query' parameter supports Norwegian language full-text search across name, aktivitet, and vedtektsfestet_formaal fields.",
     "Location filters use case-insensitive partial matching (ILIKE) and can be combined (e.g., fylke + kommune).",
-    "The 'slug' field is auto-generated from 'navn' for use in URLs: /organisasjon/{slug}",
-    "CRITICAL: When presenting results to users, ALWAYS create clickable markdown links using the format: [Organization Name](https://frivillig-db.iverfinne.no/organisasjon/{slug}). Never show raw organization data without links.",
-    "Example presentation: '**[Bergen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/bergen-idrettslag)** - Fotball og håndball for barn og ungdom i Bergen (Vestland)'",
-    "Each organization card should be clickable and link to https://frivillig-db.iverfinne.no/organisasjon/{slug} for full details.",
     "For best performance with large result sets, use specific location filters and limit results.",
     "Text search uses PostgreSQL tsvector with Norwegian language stemming when available.",
     "Response times: Simple queries <50ms, complex text searches <200ms (typical)."
