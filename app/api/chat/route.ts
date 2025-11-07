@@ -80,7 +80,9 @@ export async function POST(req: Request) {
         organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
         organizations.forEach((org, index) => {
+          validUUIDs.add(org.id)
           organizationsContext += `${index + 1}. **${org.navn}**\n`
+          organizationsContext += `   UUID: ${org.id}\n`
           if (org.aktivitet) {
             organizationsContext += `   Aktivitet: ${org.aktivitet.substring(0, 150)}...\n`
           }
@@ -91,7 +93,8 @@ export async function POST(req: Request) {
         })
 
         organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        organizationsContext += `🚨 VIKTIG: Nemn organisasjonar med **feitskrift** (t.d. **${organizations[0].navn}**)\n`
+        organizationsContext += `🚨 VIKTIG: Bruk UUID over til å lage hyperlenker.\n`
+        organizationsContext += `🚨 Eksempel: **[${organizations[0].navn}](https://frivillig-db.iverfinne.no/organisasjon/${organizations[0].id})**\n`
         organizationsContext += "🚨 Organisasjonskort med lenkjer visast automatisk nedanfor.\n"
         organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
       }
