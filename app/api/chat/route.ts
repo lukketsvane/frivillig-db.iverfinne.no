@@ -1,7 +1,6 @@
 import { streamText, convertToCoreMessages } from "ai"
 import { createOpenAI } from "@ai-sdk/openai"
-import { searchOrganizationsJSON } from "@/lib/json-search"
-import { createOrganizationCards, searchOrganizationsWithVector } from "@/lib/organization-search"
+import { createOrganizationCards, searchOrganizationsWithVector, searchOrganizations } from "@/lib/organization-search"
 
 export const maxDuration = 30
 
@@ -36,8 +35,7 @@ export async function POST(req: Request) {
     })
 
     if (organizations.length === 0) {
-      organizations = await searchOrganizationsJSON({
-        query: "frivillig arbeid aktivitetar",
+      organizations = await searchOrganizations({
         limit: 5,
         userPostnummer: userLocation?.postnummer,
         userKommune: userLocation?.kommune,
@@ -91,8 +89,7 @@ export async function POST(req: Request) {
       })
 
       if (organizations.length === 0) {
-        organizations = await searchOrganizationsJSON({
-          query: userMessageText.trim(),
+        organizations = await searchOrganizations({
           location,
           limit: 5,
           userPostnummer: userLocation?.postnummer,
