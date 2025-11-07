@@ -159,31 +159,6 @@ export default function ChatPage() {
     sendMessage({ text: prompt })
   }
 
-  const createLinksFromOrgNames = (text: string, organizations: OrganizationCardData[]) => {
-    let processedText = text
-
-    // Sorter organisasjonar etter lengste namn først for å unngå delvis match
-    const sortedOrgs = [...organizations].sort((a, b) => b.navn.length - a.navn.length)
-
-    sortedOrgs.forEach((org) => {
-      // Finn **Organisasjonsnamn** i teksten
-      const boldPattern = new RegExp(`\\*\\*${org.navn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\*\\*`, "gi")
-      processedText = processedText.replace(
-        boldPattern,
-        `**[${org.navn}](https://frivillig-db.iverfinne.no/organisasjon/${org.slug})**`,
-      )
-
-      // Finn også vanleg organisasjonsnamn (utan feitskrift) og konverter
-      const plainPattern = new RegExp(`(?<!\\*)\\b${org.navn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b(?!\\*)`, "gi")
-      processedText = processedText.replace(
-        plainPattern,
-        `**[${org.navn}](https://frivillig-db.iverfinne.no/organisasjon/${org.slug})**`,
-      )
-    })
-
-    return processedText
-  }
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 bg-background">
       <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
@@ -269,14 +244,9 @@ export default function ChatPage() {
                   console.error("[v0] Error parsing organizations:", error)
                 }
 
-                const processedText =
-                  message.role === "assistant" && organizations.length > 0
-                    ? createLinksFromOrgNames(textContent, organizations)
-                    : textContent
-
                 return (
                   <div key={message.id} className="space-y-4">
-                    {processedText && processedText.trim() && (
+                    {textContent && textContent.trim() && (
                       <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div
                           className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed ${
@@ -298,10 +268,10 @@ export default function ChatPage() {
                                 strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
                               }}
                             >
-                              {processedText}
+                              {textContent}
                             </ReactMarkdown>
                           ) : (
-                            <div className="whitespace-pre-wrap break-words">{processedText}</div>
+                            <div className="whitespace-pre-wrap break-words">{textContent}</div>
                           )}
                         </div>
                       </div>
