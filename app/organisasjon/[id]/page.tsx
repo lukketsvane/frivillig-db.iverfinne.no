@@ -4,12 +4,59 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { createStaticClient } from "@/lib/supabase/static"
 
 interface OrganizationPageProps {
   params: Promise<{
     id: string
   }>
 }
+
+export async function generateStaticParams() {
+  const supabase = createStaticClient()
+
+  // Hent ALLE organisasjonar frå databasen
+  const allOrganizations: any[] = []
+  let offset = 0
+  const batchSize = 10000
+
+  console.log("[v0] Starting to fetch ALL organization IDs for static generation...")
+
+  while (true) {
+    const { data: batch, error } = await supabase
+      .from("organizations_with_fylke")
+      .select("id")
+      .range(offset, offset + batchSize - 1)
+
+    if (error) {
+      console.error(`[v0] Error fetching batch at offset ${offset}:`, error)
+      break
+    }
+
+    if (!batch || batch.length === 0) {
+      break
+    }
+
+    allOrganizations.push(...batch)
+    console.log(`[v0] Fetched batch: ${batch.length} organizations (total: ${allOrganizations.length})`)
+
+    if (batch.length < batchSize) {
+      break // No more data
+    }
+
+    offset += batchSize
+  }
+
+  console.log(`[v0] Total organizations for static generation: ${allOrganizations.length}`)
+
+  return allOrganizations.map((org) => ({
+    id: org.id,
+  }))
+}
+
+export const dynamic = "force-static"
+export const dynamicParams = false // Berre tillat føregenererte sider
+export const revalidate = 86400 // Revalidate kvar 24 timer
 
 export default async function OrganizationPage({ params }: OrganizationPageProps) {
   const { id } = await params

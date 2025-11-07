@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@ai-sdk/openai':
-        specifier: latest
+        specifier: 2.0.64
         version: 2.0.64(zod@3.25.76)
       '@ai-sdk/react':
         specifier: latest

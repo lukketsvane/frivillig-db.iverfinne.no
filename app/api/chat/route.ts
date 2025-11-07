@@ -1,9 +1,5 @@
 import { streamText, convertToCoreMessages } from "ai"
-import {
-  searchOrganizationsWithVector,
-  formatOrganizationForChat,
-  createOrganizationCards,
-} from "@/lib/organization-search"
+import { searchOrganizationsWithVector, createOrganizationCards } from "@/lib/organization-search"
 
 export const maxDuration = 30
 
@@ -15,7 +11,28 @@ export async function POST(req: Request) {
   const latestUserMessage = messages.filter((m) => m.role === "user").pop()
   const userMessageText = latestUserMessage?.content || ""
 
-  console.log("[v0] User message:", userMessageText)
+  let foundOrganizations: any[] = []
+
+  const validUUIDs = new Set<string>()
+
+  if (!userMessageText || userMessageText.trim().length === 0) {
+    console.log("[v0] Empty message, using default query")
+    const organizations = await searchOrganizationsWithVector({
+      query: "frivillig arbeid aktivitetar",
+      limit: 5,
+      userPostnummer: userLocation?.postnummer,
+      userKommune: userLocation?.kommune,
+      userFylke: userLocation?.fylke,
+    })
+
+    foundOrganizations = organizations
+    organizations.forEach((org) => validUUIDs.add(org.id))
+    console.log("[v0] Found organizations (default):", foundOrganizations.length)
+    console.log("[v0] Valid UUIDs:", Array.from(validUUIDs).join(", "))
+  } else {
+    console.log("[v0] User message:", userMessageText.substring(0, 100))
+  }
+
   console.log("[v0] User location:", userLocation)
 
   const identifyLifeStage = (text: string) => {
@@ -35,38 +52,54 @@ export async function POST(req: Request) {
   const lifeStage = identifyLifeStage(userMessageText)
   const stageGuidance = lifeStage ? `Vurdering: ${lifeStage}` : ""
 
-  // Ekstraher plassering frå melding
   const locationMatch = userMessageText.match(/i\s+([A-ZÆØÅ][a-zæøå]+)/i)
   const location = locationMatch ? locationMatch[1] : undefined
 
   console.log("[v0] Detected location:", location)
 
   let organizationsContext = ""
-  let foundOrganizations: any[] = []
-  try {
-    const organizations = await searchOrganizationsWithVector({
-      query: userMessageText, // Send heile meldinga som query
-      location,
-      limit: 5,
-      userPostnummer: userLocation?.postnummer,
-      userKommune: userLocation?.kommune,
-      userFylke: userLocation?.fylke,
-    })
 
-    foundOrganizations = organizations
-    console.log("[v0] Found organizations:", foundOrganizations.length)
-
-    if (organizations.length > 0) {
-      organizationsContext = "\n\nRelevante frivilligorganisasjonar:\n"
-      organizations.forEach((org) => {
-        organizationsContext += formatOrganizationForChat(org)
+  if (userMessageText && userMessageText.trim().length > 0) {
+    try {
+      const organizations = await searchOrganizationsWithVector({
+        query: userMessageText.trim(),
+        location,
+        limit: 5,
+        userPostnummer: userLocation?.postnummer,
+        userKommune: userLocation?.kommune,
+        userFylke: userLocation?.fylke,
       })
+
+      foundOrganizations = organizations
+      console.log("[v0] Found organizations:", foundOrganizations.length)
+      console.log("[v0] Valid UUIDs:", Array.from(validUUIDs).join(", "))
+
+      if (organizations.length > 0) {
+        organizationsContext = "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        organizationsContext += "🎯 ORGANISASJONAR FRÅ DATABASEN:\n"
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        organizations.forEach((org, index) => {
+          organizationsContext += `${index + 1}. **${org.navn}**\n`
+          if (org.aktivitet) {
+            organizationsContext += `   Aktivitet: ${org.aktivitet.substring(0, 150)}...\n`
+          }
+          if (org.forretningsadresse_poststed) {
+            organizationsContext += `   Stad: ${org.forretningsadresse_poststed}\n`
+          }
+          organizationsContext += `\n`
+        })
+
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        organizationsContext += `🚨 VIKTIG: Nemn organisasjonar med **feitskrift** (t.d. **${organizations[0].navn}**)\n`
+        organizationsContext += "🚨 Organisasjonskort med lenkjer visast automatisk nedanfor.\n"
+        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching organizations:", error)
     }
-  } catch (error) {
-    console.error("[v0] Error fetching organizations:", error)
   }
 
-  // Build enhanced system prompt
   const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg. 
 
 Du kommuniserer på nynorsk og gir direkte, konkrete svar.
@@ -75,16 +108,13 @@ ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
 
 ${organizationsContext ? `${organizationsContext}` : ""}
 
-Oppgåva di:
-1. Analyser brukarens behov basert på alder, interesser og stad
-2. Presenter relevante organisasjonar frå databasen med hyperlenkjer
-3. Gje konkrete forslag til kva organisasjonar som passar best
-4. Ver støttande og oppmuntrande
+VIKTIG REGLAR:
+1. ✅ Nemn organisasjonsnamn i feitskrift: **Namn**
+2. ✅ Forklar kvifor det passar (2-3 setningar)
+3. ❌ ALDRI skriv UUID eller URL
+4. ❌ ALDRI nemn organisasjonar som ikkje står i lista
 
-VIKTIG: Når du nemner ein organisasjon, bruk alltid markdown-lenkjer slik:
-[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ORGANISASJONS_ID)
-
-Eksempel: [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123) er perfekt for deg!
+Organisasjonskort med klikkbare lenkjer blir automatisk vist nedanfor svaret ditt.
 
 Svar kort og direkte (maksimum 3-4 setningar).`
 
@@ -107,7 +137,6 @@ Svar kort og direkte (maksimum 3-4 setningar).`
     const orgCards = createOrganizationCards(foundOrganizations)
     console.log("[v0] Sending organization cards:", orgCards.length)
 
-    // Return response with organizations embedded in data
     return new Response(
       new ReadableStream({
         async start(controller) {
@@ -121,7 +150,6 @@ Svar kort og direkte (maksimum 3-4 setningar).`
             while (true) {
               const { done, value } = await reader.read()
               if (done) {
-                // Send organizations as data at the end
                 const dataLine = `2:[${JSON.stringify({ organizations: orgCards })}]\n`
                 controller.enqueue(new TextEncoder().encode(dataLine))
                 controller.close()

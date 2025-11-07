@@ -58,6 +58,17 @@ function calculateLocationPriority(
   return 4 // Andre plassar
 }
 
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[æøå]/g, (char) => {
+      const map: Record<string, string> = { æ: "ae", ø: "o", å: "aa" }
+      return map[char] || char
+    })
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+}
+
 export async function searchOrganizations(params: SearchParams): Promise<Organization[]> {
   const supabase = await createClient()
 
@@ -113,25 +124,38 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
 export async function searchOrganizationsWithVector(params: SearchParams): Promise<Organization[]> {
   const supabase = await createClient()
 
-  let searchQuery = params.query || ""
+  let searchQuery = ""
 
-  if (!searchQuery) {
+  // Prioriter direkte query først
+  if (params.query && params.query.trim().length > 0) {
+    searchQuery = params.query.trim()
+  } else {
+    // Bygg query frå parametrar
+    const queryParts: string[] = []
+
     if (params.interests && params.interests.length > 0) {
-      searchQuery += `Interesser: ${params.interests.join(", ")}. `
+      queryParts.push(`Interesser: ${params.interests.join(", ")}`)
     }
     if (params.ageGroup) {
-      searchQuery += `Aldersgruppe: ${params.ageGroup}. `
+      queryParts.push(`Aldersgruppe: ${params.ageGroup}`)
     }
     if (params.location) {
-      searchQuery += `Stad: ${params.location}. `
+      queryParts.push(`Stad: ${params.location}`)
     }
+
+    searchQuery = queryParts.join(". ")
   }
 
   console.log("[v0] Vector search query:", searchQuery)
 
+  if (!searchQuery || searchQuery.trim().length < 2) {
+    console.log("[v0] No valid query, using default SQL search")
+    return searchOrganizations(params)
+  }
+
   try {
-    // Søk i vector store
-    const vectorResults = await searchVectorStore(searchQuery, 20)
+    // Søk i vector store med høgare limit for betre resultat
+    const vectorResults = await searchVectorStore(searchQuery, 30)
     console.log("[v0] Vector results:", vectorResults.length)
 
     if (vectorResults.length === 0) {
@@ -145,6 +169,7 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
     console.log("[v0] Extracted org IDs:", orgIds.length)
 
     if (orgIds.length === 0) {
+      console.log("[v0] No valid org IDs from vector results")
       return searchOrganizations(params)
     }
 
@@ -179,15 +204,30 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
     }
 
     let organizations = data as Organization[]
+    console.log("[v0] Fetched organizations from DB:", organizations.length)
 
-    // Sorter basert på plassering viss tilgjengeleg
-    if (params.userPostnummer || params.userKommune || params.userFylke) {
-      organizations = organizations.sort((a, b) => {
-        const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune, params.userFylke)
-        const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune, params.userFylke)
-        return priorityA - priorityB
-      })
+    if (organizations.length === 0) {
+      console.log("[v0] No organizations found in DB, falling back to SQL")
+      return searchOrganizations(params)
     }
+
+    // Opprett ein map av vector scores
+    const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]))
+
+    organizations = organizations.sort((a, b) => {
+      // Først sorter etter vector score
+      const scoreA = scoreMap.get(a.id) || 0
+      const scoreB = scoreMap.get(b.id) || 0
+
+      if (Math.abs(scoreA - scoreB) > 0.05) {
+        return scoreB - scoreA // Høgare score først
+      }
+
+      // Viss scorane er like, sorter etter plassering
+      const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune, params.userFylke)
+      const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune, params.userFylke)
+      return priorityA - priorityB
+    })
 
     return organizations.slice(0, params.limit || 5)
   } catch (error) {
@@ -196,12 +236,13 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
   }
 }
 
-export async function getOrganizationById(id: string): Promise<Organization | null> {
+export async function getOrganizationByName(slug: string): Promise<Organization | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from("organizations")
-    .select(`
+    .select(
+      `
       id,
       organisasjonsnummer,
       navn,
@@ -225,16 +266,50 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
       antall_ansatte,
       stiftelsesdato,
       registreringsdato_frivillighetsregisteret
-    `)
-    .eq("id", id)
-    .single()
+    `,
+    )
+    .limit(1000)
 
   if (error) {
-    console.error("[v0] Error fetching organization:", error)
+    console.error("[v0] Error fetching organizations:", error)
     return null
   }
 
-  return data as Organization
+  // Find organization by matching slug
+  const org = data?.find((o) => generateSlug(o.navn) === slug)
+
+  return org ? (org as Organization) : null
+}
+
+// Keep old function for backward compatibility
+export const getOrganizationById = getOrganizationByName
+
+export interface OrganizationCardData {
+  id: string
+  navn: string
+  slug: string
+  aktivitet?: string
+  formaal?: string
+  poststed?: string
+  kommune?: string
+  hjemmeside?: string
+  telefon?: string
+  epost?: string
+}
+
+export function createOrganizationCards(organizations: Organization[]): OrganizationCardData[] {
+  return organizations.map((org) => ({
+    id: org.id,
+    navn: org.navn,
+    slug: generateSlug(org.navn),
+    aktivitet: org.aktivitet,
+    formaal: org.vedtektsfestet_formaal,
+    poststed: org.forretningsadresse_poststed,
+    kommune: org.forretningsadresse_kommune,
+    hjemmeside: org.hjemmeside,
+    telefon: org.telefon,
+    epost: org.epost,
+  }))
 }
 
 export function formatOrganizationResult(org: Organization): string {
@@ -298,30 +373,4 @@ export function formatOrganizationForChat(org: Organization): string {
   result += `Les meir: /organisasjon/${org.id}\n`
 
   return result
-}
-
-export interface OrganizationCardData {
-  id: string
-  navn: string
-  aktivitet?: string
-  formaal?: string
-  poststed?: string
-  kommune?: string
-  hjemmeside?: string
-  telefon?: string
-  epost?: string
-}
-
-export function createOrganizationCards(organizations: Organization[]): OrganizationCardData[] {
-  return organizations.map((org) => ({
-    id: org.id,
-    navn: org.navn,
-    aktivitet: org.aktivitet,
-    formaal: org.vedtektsfestet_formaal,
-    poststed: org.forretningsadresse_poststed,
-    kommune: org.forretningsadresse_kommune,
-    hjemmeside: org.hjemmeside,
-    telefon: org.telefon,
-    epost: org.epost,
-  }))
 }
