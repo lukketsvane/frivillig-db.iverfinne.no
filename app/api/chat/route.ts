@@ -1,5 +1,6 @@
 import { streamText, convertToCoreMessages } from "ai"
-import { searchOrganizationsWithVector, createOrganizationCards } from "@/lib/organization-search"
+import { searchOrganizationsJSON } from "@/lib/json-search"
+import { createOrganizationCards } from "@/lib/organization-search"
 
 export const maxDuration = 30
 
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
 
   if (!userMessageText || userMessageText.trim().length === 0) {
     console.log("[v0] Empty message, using default query")
-    const organizations = await searchOrganizationsWithVector({
+    const organizations = await searchOrganizationsJSON({
       query: "frivillig arbeid aktivitetar",
       limit: 5,
       userPostnummer: userLocation?.postnummer,
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
 
   if (userMessageText && userMessageText.trim().length > 0) {
     try {
-      const organizations = await searchOrganizationsWithVector({
+      const organizations = await searchOrganizationsJSON({
         query: userMessageText.trim(),
         location,
         limit: 5,
