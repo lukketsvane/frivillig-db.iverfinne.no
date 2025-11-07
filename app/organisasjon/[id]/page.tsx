@@ -51,7 +51,36 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
     notFound()
   }
 
-  const businessAddressLines = normalizeBusinessAddress(organization.forretningsadresse_adresse)
+  const businessAddressLines = (() => {
+    const raw = organization.forretningsadresse_adresse
+
+    if (!raw) {
+      return [] as string[]
+    }
+
+    if (Array.isArray(raw)) {
+      return raw.filter((line): line is string => Boolean(line && line.trim()))
+    }
+
+    if (typeof raw === "string") {
+      const trimmed = raw.trim()
+
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) {
+            return parsed.filter((line): line is string => typeof line === "string" && line.trim().length > 0)
+          }
+        } catch (error) {
+          console.warn("[v0] Failed to parse business address lines", error)
+        }
+      }
+
+      return trimmed.length > 0 ? [trimmed] : []
+    }
+
+    return [] as string[]
+  })()
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
