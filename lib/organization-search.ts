@@ -286,25 +286,20 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
 
   if (isOrgnr) {
     // Prøv å finne i JSON-databasen først
-    console.log(`[v0] Looking up by organisasjonsnummer: ${idOrOrgnr}`)
     try {
       const jsonOrg = await findOrganizationByOrgnr(idOrOrgnr)
       if (jsonOrg) {
-        console.log(`[v0] Found in JSON database: ${jsonOrg.navn}`)
         return {
           ...(jsonOrg as Organization),
           forretningsadresse_adresse: normalizeBusinessAddress(jsonOrg.forretningsadresse_adresse),
         }
       }
-    } catch (jsonError) {
-      console.error(`[v0] Error searching JSON database:`, jsonError)
+    } catch {
       // Fortsett til Supabase fallback
     }
   }
 
   // Fallback til Supabase (for UUID eller om JSON-søk feilar)
-  console.log(`[v0] Falling back to Supabase for: ${idOrOrgnr}`)
-
   try {
     const supabase = await createClient()
 
@@ -342,7 +337,6 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
       : query.eq("id", idOrOrgnr).single())
 
     if (error) {
-      console.error("[v0] Error fetching organization:", error)
       return null
     }
 
@@ -350,8 +344,7 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
       ...(data as Organization),
       forretningsadresse_adresse: normalizeBusinessAddress(data?.forretningsadresse_adresse),
     }
-  } catch (supabaseError) {
-    console.error("[v0] Critical error in Supabase lookup:", supabaseError)
+  } catch {
     return null
   }
 }
