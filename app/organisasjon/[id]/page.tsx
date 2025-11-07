@@ -1,4 +1,4 @@
-import { getOrganizationById } from "@/lib/organization-search"
+import { getOrganizationById, normalizeBusinessAddress } from "@/lib/organization-search"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
