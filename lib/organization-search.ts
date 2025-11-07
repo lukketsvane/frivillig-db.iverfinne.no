@@ -58,17 +58,6 @@ function calculateLocationPriority(
   return 4 // Andre plassar
 }
 
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[æøå]/g, (char) => {
-      const map: Record<string, string> = { æ: "ae", ø: "o", å: "aa" }
-      return map[char] || char
-    })
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-}
-
 export async function searchOrganizations(params: SearchParams): Promise<Organization[]> {
   const supabase = await createClient()
 
@@ -236,13 +225,12 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
   }
 }
 
-export async function getOrganizationByName(slug: string): Promise<Organization | null> {
+export async function getOrganizationById(id: string): Promise<Organization | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from("organizations")
-    .select(
-      `
+    .select(`
       id,
       organisasjonsnummer,
       navn,
@@ -266,50 +254,16 @@ export async function getOrganizationByName(slug: string): Promise<Organization 
       antall_ansatte,
       stiftelsesdato,
       registreringsdato_frivillighetsregisteret
-    `,
-    )
-    .limit(1000)
+    `)
+    .eq("id", id)
+    .single()
 
   if (error) {
-    console.error("[v0] Error fetching organizations:", error)
+    console.error("[v0] Error fetching organization:", error)
     return null
   }
 
-  // Find organization by matching slug
-  const org = data?.find((o) => generateSlug(o.navn) === slug)
-
-  return org ? (org as Organization) : null
-}
-
-// Keep old function for backward compatibility
-export const getOrganizationById = getOrganizationByName
-
-export interface OrganizationCardData {
-  id: string
-  navn: string
-  slug: string
-  aktivitet?: string
-  formaal?: string
-  poststed?: string
-  kommune?: string
-  hjemmeside?: string
-  telefon?: string
-  epost?: string
-}
-
-export function createOrganizationCards(organizations: Organization[]): OrganizationCardData[] {
-  return organizations.map((org) => ({
-    id: org.id,
-    navn: org.navn,
-    slug: generateSlug(org.navn),
-    aktivitet: org.aktivitet,
-    formaal: org.vedtektsfestet_formaal,
-    poststed: org.forretningsadresse_poststed,
-    kommune: org.forretningsadresse_kommune,
-    hjemmeside: org.hjemmeside,
-    telefon: org.telefon,
-    epost: org.epost,
-  }))
+  return data as Organization
 }
 
 export function formatOrganizationResult(org: Organization): string {
@@ -373,4 +327,30 @@ export function formatOrganizationForChat(org: Organization): string {
   result += `Les meir: /organisasjon/${org.id}\n`
 
   return result
+}
+
+export interface OrganizationCardData {
+  id: string
+  navn: string
+  aktivitet?: string
+  formaal?: string
+  poststed?: string
+  kommune?: string
+  hjemmeside?: string
+  telefon?: string
+  epost?: string
+}
+
+export function createOrganizationCards(organizations: Organization[]): OrganizationCardData[] {
+  return organizations.map((org) => ({
+    id: org.id,
+    navn: org.navn,
+    aktivitet: org.aktivitet,
+    formaal: org.vedtektsfestet_formaal,
+    poststed: org.forretningsadresse_poststed,
+    kommune: org.forretningsadresse_kommune,
+    hjemmeside: org.hjemmeside,
+    telefon: org.telefon,
+    epost: org.epost,
+  }))
 }
