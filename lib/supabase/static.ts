@@ -1,7 +1,6 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 
-// Enkel Supabase-klient for statisk generering ved bygg-tid
-// Brukar ikkje cookies, så fungerer i generateStaticParams()
+// Denne brukar ikkje cookies og er berre for lesing av offentleg data
 export function createStaticClient() {
-  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 }
