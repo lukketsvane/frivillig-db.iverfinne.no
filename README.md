@@ -28,3 +28,11 @@ Continue building your app on:
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+## Environment variables
+
+Set the following variables in your local `.env` file and in your deployment platform:
+
+| Variable | Description |
+| --- | --- |
+| `OPENAI_API_KEY` | API key used by the chat endpoint for OpenAI model access. |

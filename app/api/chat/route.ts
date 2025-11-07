@@ -1,8 +1,17 @@
 import { streamText, convertToCoreMessages } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
 import { searchOrganizationsJSON } from "@/lib/json-search"
-import { createOrganizationCards } from "@/lib/organization-search"
+import { createOrganizationCards, searchOrganizationsWithVector } from "@/lib/organization-search"
 
 export const maxDuration = 30
+
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY is not set")
+}
+
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+})
 
 export async function POST(req: Request) {
   const { messages, userLocation }: { messages: any[]; userLocation?: any } = await req.json()
@@ -18,13 +27,23 @@ export async function POST(req: Request) {
 
   if (!userMessageText || userMessageText.trim().length === 0) {
     console.log("[v0] Empty message, using default query")
-    const organizations = await searchOrganizationsJSON({
+    let organizations = await searchOrganizationsWithVector({
       query: "frivillig arbeid aktivitetar",
       limit: 5,
       userPostnummer: userLocation?.postnummer,
       userKommune: userLocation?.kommune,
       userFylke: userLocation?.fylke,
     })
+
+    if (organizations.length === 0) {
+      organizations = await searchOrganizationsJSON({
+        query: "frivillig arbeid aktivitetar",
+        limit: 5,
+        userPostnummer: userLocation?.postnummer,
+        userKommune: userLocation?.kommune,
+        userFylke: userLocation?.fylke,
+      })
+    }
 
     foundOrganizations = organizations
     organizations.forEach((org) => org.organisasjonsnummer && validOrgnr.add(org.organisasjonsnummer))
@@ -62,7 +81,7 @@ export async function POST(req: Request) {
 
   if (userMessageText && userMessageText.trim().length > 0) {
     try {
-      const organizations = await searchOrganizationsJSON({
+      let organizations = await searchOrganizationsWithVector({
         query: userMessageText.trim(),
         location,
         limit: 5,
@@ -70,6 +89,17 @@ export async function POST(req: Request) {
         userKommune: userLocation?.kommune,
         userFylke: userLocation?.fylke,
       })
+
+      if (organizations.length === 0) {
+        organizations = await searchOrganizationsJSON({
+          query: userMessageText.trim(),
+          location,
+          limit: 5,
+          userPostnummer: userLocation?.postnummer,
+          userKommune: userLocation?.kommune,
+          userFylke: userLocation?.fylke,
+        })
+      }
 
       foundOrganizations = organizations
       console.log("[v0] Found organizations:", foundOrganizations.length)
@@ -144,11 +174,10 @@ Hugs: KVAR gong du nemner ein organisasjon = klikkbar lenke til https://frivilli
 Svar kort og direkte (maksimum 3-4 setningar).`
 
   const result = streamText({
-    model: "anthropic/claude-sonnet-4.5",
+    model: openai("gpt-4.1"),
     messages: coreMessages,
     abortSignal: req.signal,
     system: systemPrompt,
-    apiKey: "vck_5GJE6iWRKwefpMlSNR8ObURjaSdP3iYB88aJZXNu5V4EN5jpqL4aVT1f",
   })
 
   const stream = result.toUIMessageStreamResponse({
