@@ -3,10 +3,15 @@
  *
  * This file demonstrates how to register and use the searchOrganizations
  * custom tool with the Anthropic Claude API.
+ *
+ * IMPORTANT: When Claude returns results, it will automatically format them
+ * as clickable links to https://frivillig-db.iverfinne.no/organisasjon/{slug}
+ * based on the instructions in the tool schema.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
 import searchOrganizationsTool from '../tools/searchOrganizations.json'
+import { createClaudeResponse, formatToolResultForClaude } from '../lib/claude-formatters'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -86,12 +91,13 @@ export async function example2_toolUseFlow() {
 
         console.log('API returned:', data)
 
-        // Send tool result back to Claude
+        // Send tool result back to Claude with formatting instructions
         conversationHistory.push({
           role: 'assistant',
           content: response.content,
         })
 
+        // Option 1: Send raw data (Claude will format based on tool schema)
         conversationHistory.push({
           role: 'user',
           content: [
@@ -102,6 +108,24 @@ export async function example2_toolUseFlow() {
             },
           ],
         })
+
+        // Option 2: Pre-format for Claude (uncomment to use)
+        // const formattedResult = formatToolResultForClaude(
+        //   data.data,
+        //   data.meta,
+        //   toolUse.input.query,
+        //   toolUse.input.location
+        // )
+        // conversationHistory.push({
+        //   role: 'user',
+        //   content: [
+        //     {
+        //       type: 'tool_result',
+        //       tool_use_id: toolUse.id,
+        //       content: formattedResult,
+        //     },
+        //   ],
+        // })
 
         // Get final response from Claude
         const finalResponse = await client.messages.create({
@@ -358,6 +382,101 @@ export async function example6_nextJsApiRoute() {
   }
 }
 
+/**
+ * Example 7: Expected Claude Response Format
+ * This shows what Claude should output based on the tool schema instructions
+ */
+export function example7_expectedOutputFormat() {
+  console.log(`
+=================================================================
+EXAMPLE: Expected Claude Response with Clickable Links
+=================================================================
+
+User Query:
+"Find sports organizations in Bergen for youth"
+
+Claude Tool Call:
+{
+  "name": "searchOrganizations",
+  "input": {
+    "query": "idrett sport ungdom",
+    "poststed": "Bergen",
+    "limit": 5
+  }
+}
+
+API Returns:
+{
+  "data": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "navn": "Bergen Idrettslag",
+      "slug": "bergen-idrettslag",
+      "aktivitet": "Fotball, håndball og ski for barn og ungdom",
+      "forretningsadresse_poststed": "Bergen",
+      "fylke": "Vestland",
+      "hjemmeside": "https://bergen-il.no",
+      "epost": "post@bergen-il.no",
+      "telefon": "55123456"
+    },
+    ... (4 more)
+  ],
+  "meta": {
+    "total": 23,
+    "returned": 5
+  }
+}
+
+Claude Response (CORRECT FORMAT):
+---
+
+Jeg fant 23 idrettsklubber i Bergen som jobber med ungdom. Her er de 5 mest relevante:
+
+1. **[Bergen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/bergen-idrettslag)**
+   Fotball, håndball og ski for barn og ungdom
+   📍 Bergen, Vestland
+
+2. **[Fana Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/fana-idrettslag)**
+   Allsidig idrettsklubb med fokus på barne- og ungdomsidrett
+   📍 Bergen, Vestland
+
+3. **[Bergen Svømmeklubb](https://frivillig-db.iverfinne.no/organisasjon/bergen-svommeklubb)**
+   Svømmetrening for alle aldre fra 6 år
+   📍 Bergen, Vestland
+
+4. **[Tertnes Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/tertnes-idrettslag)**
+   Fotball, volleyball og turn for barn
+   📍 Bergen, Vestland
+
+5. **[Fyllingsdalen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/fyllingsdalen-idrettslag)**
+   Fotball og håndball med sterkt barneprogram
+   📍 Bergen, Vestland
+
+Det er 18 flere organisasjoner. [Se alle 23 resultater →](https://frivillig-db.iverfinne.no/utforsk?query=idrett%20sport%20ungdom&location=Bergen)
+
+Vil du vite mer om noen av disse? Klikk på navnet for å se full info, kontaktdetaljer og påmeldingsinformasjon.
+
+---
+
+KEY POINTS:
+✅ Each organization name is a clickable markdown link
+✅ Links use full URL: https://frivillig-db.iverfinne.no/organisasjon/{slug}
+✅ No raw data (IDs, JSON) shown to user
+✅ Emojis used for visual hierarchy
+✅ "See all" link provided for pagination
+✅ User-friendly Norwegian language
+✅ Clean, scannable formatting
+
+INCORRECT FORMATS TO AVOID:
+❌ "Bergen Idrettslag (ID: 123e4567-e89b-12d3-a456-426614174000)"
+❌ "View at: frivillig-db.iverfinne.no/organisasjon/bergen-idrettslag" (no clickable link)
+❌ Raw JSON output
+❌ Showing 'slug' field to users
+
+=================================================================
+  `)
+}
+
 // Run examples
 if (require.main === module) {
   console.log('Running examples...\n')
@@ -369,4 +488,5 @@ if (require.main === module) {
   // example4_streaming()
   // example5_errorHandling()
   // example6_nextJsApiRoute()
+  // example7_expectedOutputFormat() // Show expected format
 }
