@@ -285,7 +285,7 @@ export async function getOrganizationById(idOrOrgnr: string): Promise<Organizati
     const supabase = await createClient()
 
     const query = supabase
-      .from("organizations")
+      .from("organizations_with_fylke")
       .select(`
         id,
         organisasjonsnummer,
