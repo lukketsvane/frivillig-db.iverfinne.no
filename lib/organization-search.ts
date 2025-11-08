@@ -79,7 +79,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     `)
     .eq("registrert_i_frivillighetsregisteret", true)
     .not("navn", "is", null)
-    .limit(params.limit || 100) // Hentar fleire for å sortere lokalt
+    .limit(params.limit || 1000) // Hentar fleire for å sortere lokalt
 
   // Filter by location if provided
   if (params.location) {
