@@ -13,7 +13,7 @@ export interface Organization {
   vedtektsfestet_formaal: string
   forretningsadresse_poststed: string
   forretningsadresse_kommune: string
-  forretningsadresse_adresse?: string | string[] | null
+  forretningsadresse_adresse: string
   forretningsadresse_postnummer: string
   postadresse_poststed: string
   postadresse_postnummer: string
@@ -58,50 +58,6 @@ function calculateLocationPriority(
   return 4 // Andre plassar
 }
 
-export function normalizeBusinessAddress(raw: unknown): string[] {
-  if (!raw) {
-    return []
-  }
-
-  if (Array.isArray(raw)) {
-    return raw
-      .map((value) => (typeof value === "string" ? value.trim() : ""))
-      .filter((value): value is string => value.length > 0)
-  }
-
-  if (typeof raw === "string") {
-    const trimmed = raw.trim()
-
-    if (!trimmed) {
-      return []
-    }
-
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      try {
-        const parsed = JSON.parse(trimmed)
-        if (Array.isArray(parsed)) {
-          return parsed
-            .map((value) => (typeof value === "string" ? value.trim() : ""))
-            .filter((value): value is string => value.length > 0)
-        }
-      } catch (error) {
-        console.warn("[v0] Failed to parse serialized business address", error)
-      }
-    }
-
-    return [trimmed]
-  }
-
-  if (typeof raw === "object") {
-    const values = Object.values(raw as Record<string, unknown>)
-    return values
-      .map((value) => (typeof value === "string" ? value.trim() : ""))
-      .filter((value): value is string => value.length > 0)
-  }
-
-  return []
-}
-
 export async function searchOrganizations(params: SearchParams): Promise<Organization[]> {
   const supabase = await createClient()
 
@@ -141,10 +97,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     return []
   }
 
-  let organizations = (data as Organization[]).map((org) => ({
-    ...org,
-    forretningsadresse_adresse: normalizeBusinessAddress(org.forretningsadresse_adresse),
-  }))
+  let organizations = data as Organization[]
 
   if (params.userPostnummer || params.userKommune || params.userFylke) {
     organizations = organizations.sort((a, b) => {
@@ -239,10 +192,7 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
       return searchOrganizations(params)
     }
 
-    let organizations = (data as Organization[]).map((org) => ({
-      ...org,
-      forretningsadresse_adresse: normalizeBusinessAddress(org.forretningsadresse_adresse),
-    }))
+    let organizations = data as Organization[]
     console.log("[v0] Fetched organizations from DB:", organizations.length)
 
     if (organizations.length === 0) {
@@ -275,58 +225,45 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
   }
 }
 
-/**
- * Hent organisasjon basert på organisasjonsnummer frå Supabase
- */
-export async function getOrganizationById(idOrOrgnr: string): Promise<Organization | null> {
-  const isOrgnr = /^\d{9}$/.test(idOrOrgnr)
+export async function getOrganizationById(id: string): Promise<Organization | null> {
+  const supabase = await createClient()
 
-  try {
-    const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("organizations")
+    .select(`
+      id,
+      organisasjonsnummer,
+      navn,
+      organisasjonsform_beskrivelse,
+      naeringskode1_beskrivelse,
+      naeringskode2_beskrivelse,
+      naeringskode3_beskrivelse,
+      aktivitet,
+      vedtektsfestet_formaal,
+      forretningsadresse_poststed,
+      forretningsadresse_kommune,
+      forretningsadresse_adresse,
+      forretningsadresse_postnummer,
+      postadresse_poststed,
+      postadresse_postnummer,
+      postadresse_adresse,
+      hjemmeside,
+      epost,
+      telefon,
+      mobiltelefon,
+      antall_ansatte,
+      stiftelsesdato,
+      registreringsdato_frivillighetsregisteret
+    `)
+    .eq("id", id)
+    .single()
 
-    const query = supabase
-      .from("organizations_with_fylke")
-      .select(`
-        id,
-        organisasjonsnummer,
-        navn,
-        organisasjonsform_beskrivelse,
-        naeringskode1_beskrivelse,
-        naeringskode2_beskrivelse,
-        naeringskode3_beskrivelse,
-        aktivitet,
-        vedtektsfestet_formaal,
-        forretningsadresse_poststed,
-        forretningsadresse_kommune,
-        forretningsadresse_adresse,
-        forretningsadresse_postnummer,
-        postadresse_poststed,
-        postadresse_postnummer,
-        postadresse_adresse,
-        hjemmeside,
-        epost,
-        telefon,
-        mobiltelefon,
-        antall_ansatte,
-        stiftelsesdato,
-        registreringsdato_frivillighetsregisteret
-      `)
-
-    const { data, error } = await (isOrgnr
-      ? query.eq("organisasjonsnummer", idOrOrgnr).single()
-      : query.eq("id", idOrOrgnr).single())
-
-    if (error) {
-      return null
-    }
-
-    return {
-      ...(data as Organization),
-      forretningsadresse_adresse: normalizeBusinessAddress(data?.forretningsadresse_adresse),
-    }
-  } catch {
+  if (error) {
+    console.error("[v0] Error fetching organization:", error)
     return null
   }
+
+  return data as Organization
 }
 
 export function formatOrganizationResult(org: Organization): string {
@@ -361,6 +298,7 @@ export function formatOrganizationResult(org: Organization): string {
 
 export function formatOrganizationForChat(org: Organization): string {
   let result = `\n**${org.navn}**\n`
+  result += `ID: ${org.id}\n`
 
   if (org.aktivitet) {
     result += `Aktivitet: ${org.aktivitet.substring(0, 150)}${org.aktivitet.length > 150 ? "..." : ""}\n`
@@ -386,9 +324,7 @@ export function formatOrganizationForChat(org: Organization): string {
     result += `E-post: ${org.epost}\n`
   }
 
-  // Bruk organisasjonsnummer i URL
-  const urlId = org.organisasjonsnummer || org.id
-  result += `Les meir: /organisasjon/${urlId}\n`
+  result += `Les meir: /organisasjon/${org.id}\n`
 
   return result
 }
@@ -407,8 +343,7 @@ export interface OrganizationCardData {
 
 export function createOrganizationCards(organizations: Organization[]): OrganizationCardData[] {
   return organizations.map((org) => ({
-    // Bruk organisasjonsnummer som ID for klikkbare kort
-    id: org.organisasjonsnummer || org.id,
+    id: org.id,
     navn: org.navn,
     aktivitet: org.aktivitet,
     formaal: org.vedtektsfestet_formaal,

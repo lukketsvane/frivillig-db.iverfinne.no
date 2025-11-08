@@ -1,4 +1,4 @@
-import { getOrganizationById, normalizeBusinessAddress } from "@/lib/organization-search"
+import { getOrganizationById } from "@/lib/organization-search"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
@@ -19,10 +19,9 @@ export async function generateStaticParams() {
   // Resten handterast dynamisk med ISR
   const { data: organizations, error } = await supabase
     .from("organizations_with_fylke")
-    .select("organisasjonsnummer")
+    .select("id")
     .eq("registrert_i_frivillighetsregisteret", true)
     .not("hjemmeside", "is", null) // Prioriter org med nettside
-    .not("organisasjonsnummer", "is", null) // Må ha organisasjonsnummer
     .order("antall_ansatte", { ascending: false, nullsLast: true })
     .limit(1000) // Generer 1000 mest relevante først
 
@@ -35,7 +34,7 @@ export async function generateStaticParams() {
 
   return (
     organizations?.map((org) => ({
-      id: org.organisasjonsnummer.toString(), // Bruk organisasjonsnummer som ID
+      id: org.id,
     })) || []
   )
 }
@@ -50,37 +49,6 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
   if (!organization) {
     notFound()
   }
-
-  const businessAddressLines = (() => {
-    const raw = organization.forretningsadresse_adresse
-
-    if (!raw) {
-      return [] as string[]
-    }
-
-    if (Array.isArray(raw)) {
-      return raw.filter((line): line is string => Boolean(line && line.trim()))
-    }
-
-    if (typeof raw === "string") {
-      const trimmed = raw.trim()
-
-      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          if (Array.isArray(parsed)) {
-            return parsed.filter((line): line is string => typeof line === "string" && line.trim().length > 0)
-          }
-        } catch (error) {
-          console.warn("[v0] Failed to parse business address lines", error)
-        }
-      }
-
-      return trimmed.length > 0 ? [trimmed] : []
-    }
-
-    return [] as string[]
-  })()
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -128,12 +96,13 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
                   <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <p className="text-foreground">
-                      {businessAddressLines.length > 0 && (
-                        <>
-                          {businessAddressLines.join(", ")}
-                          <br />
-                        </>
-                      )}
+                      {organization.forretningsadresse_adresse &&
+                        organization.forretningsadresse_adresse.length > 0 && (
+                          <>
+                            {organization.forretningsadresse_adresse.join(", ")}
+                            <br />
+                          </>
+                        )}
                       {organization.forretningsadresse_postnummer && <>{organization.forretningsadresse_postnummer} </>}
                       {organization.forretningsadresse_poststed}
                     </p>
