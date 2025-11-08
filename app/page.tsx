@@ -13,7 +13,6 @@ import type { OrganizationCardData } from "@/lib/organization-search"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { reverseGeocode } from "@/lib/geocoding"
 
 type Theme = "light" | "dark"
 
@@ -33,7 +32,6 @@ export default function ChatPage() {
     postnummer?: string
   } | null>(null)
   const [locationPermission, setLocationPermission] = useState<"prompt" | "granted" | "denied">("prompt")
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as Theme | null
@@ -65,54 +63,23 @@ export default function ChatPage() {
     document.documentElement.classList.toggle("dark", newTheme === "dark")
   }
 
-  const handleLocationRequest = async () => {
+  const handleLocationRequest = () => {
     if (!navigator.geolocation) {
       alert("Nettlesaren din støttar ikkje plasseringstenester")
       return
     }
 
-    setIsLoadingLocation(true)
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords
-
-        // Reverse geocode koordinatane
-        const location = await reverseGeocode(latitude, longitude)
-
-        if (location) {
-          setUserLocation(location)
-          setLocationPermission("granted")
-          localStorage.setItem("userLocation", JSON.stringify(location))
-          alert(`Plassering sett til: ${location.poststed || location.kommune || location.fylke}`)
-        } else {
-          alert("Kunne ikkje hente plassering frå koordinatane")
-        }
-
-        setIsLoadingLocation(false)
-      },
-      (error) => {
-        console.error("[v0] Geolocation error:", error)
-
-        if (error.code === error.PERMISSION_DENIED) {
-          setLocationPermission("denied")
-          alert("Du må tillate tilgang til plasseringa di for å bruke denne funksjonen")
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          alert("Plasseringa di er ikkje tilgjengeleg akkurat no")
-        } else if (error.code === error.TIMEOUT) {
-          alert("Tidsavbrot ved henting av plassering")
-        } else {
-          alert("Kunne ikkje hente plasseringa di")
-        }
-
-        setIsLoadingLocation(false)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
-    )
+    const location = prompt("Skriv inn poststad, kommune eller fylke:")
+    if (location) {
+      const savedLocation = {
+        poststed: location,
+        kommune: location,
+        fylke: location,
+      }
+      setUserLocation(savedLocation)
+      setLocationPermission("granted")
+      localStorage.setItem("userLocation", JSON.stringify(savedLocation))
+    }
   }
 
   const { messages, sendMessage, status } = useChat({
@@ -164,24 +131,23 @@ export default function ChatPage() {
       <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-2xl font-semibold">Frivillig-utforskar</h1>
-            <p className="text-sm text-muted-foreground mt-1">Finn organisasjonar som passar for deg</p>
+            <h1 className="text-2xl font-semibold">Frivilligorganisasjon-utforskar</h1>
+            <p className="text-sm text-muted-foreground mt-1">Finn den rette frivilligorganisasjonen for deg</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-10 bg-transparent">
-              <Link href="/utforsk">Alle</Link>
+              <Link href="/utforsk">Utforsk alle</Link>
             </Button>
             <Button
               variant="outline"
               size="icon"
-              className={`h-10 w-10 bg-transparent ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""} ${isLoadingLocation ? "animate-pulse" : ""}`}
+              className={`h-10 w-10 bg-transparent ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""}`}
               title={
                 locationPermission === "granted"
-                  ? `Plassering: ${userLocation?.poststed || userLocation?.kommune || "Aktivert"}`
-                  : "Del plassering"
+                  ? `Plassering: ${userLocation?.poststed || "Aktivert"}`
+                  : "Legg til plassering"
               }
               onClick={handleLocationRequest}
-              disabled={isLoadingLocation}
             >
               <MapPin className="w-4 h-4" />
               <span className="sr-only">Plassering</span>
@@ -203,8 +169,11 @@ export default function ChatPage() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
               <div className="text-center space-y-3 max-w-2xl">
-                <h2 className="text-xl text-foreground">Finn frivilligorganisasjonar</h2>
-                <p className="text-base text-muted-foreground leading-relaxed">Sei alder, interesser og stad</p>
+                <h2 className="text-xl text-foreground">Finn frivilligorganisasjonar som passar for deg!</h2>
+                <p className="text-base text-muted-foreground leading-relaxed">
+                  Ver spesifikk om alder, interesser og stad - så søkjer eg blant over 70 000 organisasjonar med ein
+                  gong.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
@@ -261,7 +230,9 @@ export default function ChatPage() {
                                 a: ({ node, ...props }) => (
                                   <a
                                     {...props}
-                                    className="text-foreground font-bold italic underline hover:no-underline cursor-pointer"
+                                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                   />
                                 ),
                                 p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
