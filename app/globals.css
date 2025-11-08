@@ -166,15 +166,13 @@
     @apply font-bold text-foreground;
   }
 
-  /* Endra lenkjer til bold, italic og understreka i staden for blå */
   .prose a {
-    @apply text-foreground font-bold italic underline hover:no-underline;
-    text-decoration: underline !important;
-    cursor: pointer;
+    @apply text-blue-600 dark:text-blue-400 hover:underline font-medium no-underline;
+    text-decoration: none !important;
   }
 
   .prose a:hover {
-    text-decoration: none !important;
+    text-decoration: underline !important;
   }
 
   .dark .prose {
@@ -182,7 +180,7 @@
   }
 
   .dark .prose a {
-    @apply text-foreground font-bold italic underline;
+    @apply text-blue-400;
   }
 
   .dark .prose strong {

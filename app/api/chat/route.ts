@@ -1,5 +1,6 @@
 import { streamText, convertToCoreMessages } from "ai"
-import { searchOrganizationsWithVector, createOrganizationCards } from "@/lib/organization-search"
+import { searchOrganizations, formatOrganizationForChat, createOrganizationCards } from "@/lib/organization-search"
+import { identifyLifeStage, generateStageGuidance } from "@/lib/erikson-theory"
 
 export const maxDuration = 30
 
@@ -11,12 +12,25 @@ export async function POST(req: Request) {
   const latestUserMessage = messages.filter((m) => m.role === "user").pop()
   const userMessageText = latestUserMessage?.content || ""
 
-  let foundOrganizations: any[] = []
+  console.log("[v0] User message:", userMessageText)
+  console.log("[v0] User location:", userLocation)
 
-  if (!userMessageText || userMessageText.trim().length === 0) {
-    console.log("[v0] Empty message, using default query")
-    const organizations = await searchOrganizationsWithVector({
-      query: "frivillig arbeid aktivitetar",
+  // Identify life stage based on Erikson's theory
+  const lifeStage = identifyLifeStage(userMessageText)
+  const stageGuidance = lifeStage ? generateStageGuidance(lifeStage) : ""
+
+  // Extract location from message
+  const locationMatch = userMessageText.match(/i\s+([A-ZÆØÅ][a-zæøå]+)/i)
+  const location = locationMatch ? locationMatch[1] : undefined
+
+  console.log("[v0] Detected location:", location)
+
+  // Search for organizations
+  let organizationsContext = ""
+  let foundOrganizations: any[] = []
+  try {
+    const organizations = await searchOrganizations({
+      location,
       limit: 5,
       userPostnummer: userLocation?.postnummer,
       userKommune: userLocation?.kommune,
@@ -24,101 +38,19 @@ export async function POST(req: Request) {
     })
 
     foundOrganizations = organizations
-    console.log("[v0] Found organizations (default):", foundOrganizations.length)
-    console.log("[v0] Organization UUIDs:", foundOrganizations.map((o) => `${o.navn}: ${o.id}`).join(", "))
-  } else {
-    console.log("[v0] User message:", userMessageText.substring(0, 100))
-  }
+    console.log("[v0] Found organizations:", foundOrganizations.length)
 
-  console.log("[v0] User location:", userLocation)
-
-  const identifyLifeStage = (text: string) => {
-    const lowerText = text.toLowerCase()
-    if (lowerText.includes("pensjonist") || lowerText.includes("eldre") || /\b[6-9]\d\b/.test(text)) {
-      return "Integritet vs. fortviling (65+)"
-    }
-    if (lowerText.includes("barn") || lowerText.includes("familie") || /\b[3-6]\d\b/.test(text)) {
-      return "Generativitet vs. stagnasjon (40-65)"
-    }
-    if (lowerText.includes("ungdom") || lowerText.includes("student") || /\b[1-2]\d\b/.test(text)) {
-      return "Intimitet vs. isolasjon (18-40)"
-    }
-    return undefined
-  }
-
-  const lifeStage = identifyLifeStage(userMessageText)
-  const stageGuidance = lifeStage ? `Vurdering: ${lifeStage}` : ""
-
-  const locationMatch = userMessageText.match(/i\s+([A-ZÆØÅ][a-zæøå]+)/i)
-  const location = locationMatch ? locationMatch[1] : undefined
-
-  console.log("[v0] Detected location:", location)
-
-  let organizationsContext = ""
-
-  if (userMessageText && userMessageText.trim().length > 0) {
-    try {
-      const organizations = await searchOrganizationsWithVector({
-        query: userMessageText.trim(),
-        location,
-        limit: 5,
-        userPostnummer: userLocation?.postnummer,
-        userKommune: userLocation?.kommune,
-        userFylke: userLocation?.fylke,
+    if (organizations.length > 0) {
+      organizationsContext = "\n\nRelevante frivilligorganisasjonar:\n"
+      organizations.forEach((org) => {
+        organizationsContext += formatOrganizationForChat(org)
       })
-
-      foundOrganizations = organizations
-      console.log("[v0] Found organizations:", foundOrganizations.length)
-      console.log("[v0] Organization UUIDs:", foundOrganizations.map((o) => `${o.navn}: ${o.id}`).join(", "))
-
-      if (organizations.length > 0) {
-        organizationsContext = "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        organizationsContext += "🎯 ORGANISASJONAR FRÅ DATABASEN (BRUK DESSE!):\n"
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        organizationsContext += `\n⚠️ VIKTIG: Desse ${organizations.length} organisasjonane er dei EINASTE som eksisterer i databasen no.\n`
-        organizationsContext += "⚠️ Du MÅ BERRE bruke UUID-ar frå denne lista. Andre UUID-ar er hallusinering.\n\n"
-
-        organizations.forEach((org, index) => {
-          organizationsContext += `╔═══════════════════════════════════════════╗\n`
-          organizationsContext += `║ ORGANISASJON ${index + 1}/${organizations.length}\n`
-          organizationsContext += `╠═══════════════════════════════════════════╣\n`
-          organizationsContext += `║ Namn: ${org.navn}\n`
-          organizationsContext += `║ ✅ UUID: ${org.id}\n`
-          organizationsContext += `║ ✅ URL: https://frivillig-db.iverfinne.no/organisasjon/${org.id}\n`
-          organizationsContext += `║ ✅ Markdown: **[${org.navn}](https://frivillig-db.iverfinne.no/organisasjon/${org.id})**\n`
-          if (org.aktivitet) {
-            organizationsContext += `║ Aktivitet: ${org.aktivitet.substring(0, 100)}...\n`
-          }
-          if (org.vedtektsfestet_formaal) {
-            organizationsContext += `║ Formål: ${org.vedtektsfestet_formaal.substring(0, 100)}...\n`
-          }
-          if (org.forretningsadresse_poststed) {
-            organizationsContext += `║ Stad: ${org.forretningsadresse_poststed}`
-            if (org.forretningsadresse_kommune) {
-              organizationsContext += `, ${org.forretningsadresse_kommune}`
-            }
-            organizationsContext += `\n`
-          }
-          organizationsContext += `╚═══════════════════════════════════════════╝\n\n`
-        })
-
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        organizationsContext += `📋 LISTE OVER GYLDIGE UUID-AR (BERRE DESSE FINST!):\n`
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        organizations.forEach((org, index) => {
-          organizationsContext += `${index + 1}. ${org.id} → ${org.navn}\n`
-        })
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        organizationsContext += `\n🚨 KUN ${organizations.length} ORGANISASJONAR FINST I DATABASEN NO!\n`
-        organizationsContext += "🚨 ALLE ANDRE UUID-AR ER FEIL OG MÅ ALDRI BRUKAST!\n"
-        organizationsContext += "🚨 OM DU BRUKAR ANDRE UUID-AR ER DET HALLUSINERING!\n"
-        organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching organizations:", error)
     }
+  } catch (error) {
+    console.error("[v0] Error fetching organizations:", error)
   }
 
+  // Build enhanced system prompt
   const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg. 
 
 Du kommuniserer på nynorsk og gir direkte, konkrete svar.
@@ -127,59 +59,16 @@ ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
 
 ${organizationsContext ? `${organizationsContext}` : ""}
 
-═══════════════════════════════════════════════════════
-🛑 ABSOLUTT KRAV - HALLUSINERING ER STRENGT FORBODE 🛑
-═══════════════════════════════════════════════════════
+Oppgåva di:
+1. Analyser brukarens behov basert på alder, interesser og stad
+2. Presenter relevante organisasjonar frå databasen med hyperlenkjer
+3. Gje konkrete forslag til kva organisasjonar som passar best
+4. Ver støttande og oppmuntrande
 
-GRUNNREGEL:
-→ Alle organisasjonar med UUID og URL står i "LISTE OVER GYLDIGE UUID-AR" over
-→ Om ein UUID IKKJE står i lista, FINST HO IKKJE i databasen
-→ ALDRI finn på nye UUID-ar eller endre eksisterande UUID-ar
-→ ALDRI nemn organisasjonar som ikkje står i lista over
+VIKTIG: Når du nemner ein organisasjon, bruk alltid markdown-lenkjer slik:
+[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ORGANISASJONS_ID)
 
-VALIDERING FØR DU SKRIV:
-1. ✅ Finn organisasjonen i lista "ORGANISASJONAR FRÅ DATABASEN" over
-2. ✅ Kopier UUID NØYAKTIG frå "✅ UUID:" feltet (36 teikn)
-3. ✅ Sjekk at UUID stemmer med "LISTE OVER GYLDIGE UUID-AR"
-4. ✅ Bruk markdown: **[Namn](https://frivillig-db.iverfinne.no/organisasjon/UUID)**
-
-DØME PÅ KORREKT BRUK:
-- Finn "Natur og Ungdom" i lista over
-- Les UUID: b409f77a-3e74-49f6-bd9a-9f135ecd7deb
-- Skriv: **[Natur og Ungdom](https://frivillig-db.iverfinne.no/organisasjon/b409f77a-3e74-49f6-bd9a-9f135ecd7deb)**
-
-TEIKN PÅ HALLUSINERING (ALDRI GJØR DETTE):
-❌ Bruke UUID som ikkje står i "LISTE OVER GYLDIGE UUID-AR"
-❌ Endre delar av ein UUID (t.d. bytte siste del)
-❌ Finne på nye UUID-ar som liknar på eksisterande
-❌ Nemne organisasjonar som ikkje er i lista
-
-OM INGEN ORGANISASJONAR PASSAR:
-→ Sei ærleg: "Eg fann ikkje nokon god match akkurat no."
-→ Foreslå at brukaren omformulerer eller spesifiserer meir
-
-═══════════════════════════════════════════════════════
-🚨 LENKJEFORMAT (EKSAKT MATCH PÅKRAVD) 🚨
-═══════════════════════════════════════════════════════
-
-OBLIGATORISK FORMAT:
-**[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/UUID)**
-
-STEG-FOR-STEG:
-1. Start med: **[
-2. Skriv organisasjonsnamnet (må stemme med namnet i lista)
-3. Skriv: ](
-4. Skriv: https://frivillig-db.iverfinne.no/organisasjon/
-5. Kopier UUID NØYAKTIG frå lista (36 teikn: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-6. Avslutt med: )**
-
-ALDRI:
-❌ Endre domenet (må vere frivillig-db.iverfinne.no)
-❌ Mangla https://
-❌ Bruke kortare UUID-format
-❌ Bytte ut delar av UUID-en
-
-═══════════════════════════════════════════════════════
+Eksempel: [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123) er perfekt for deg!
 
 Svar kort og direkte (maksimum 3-4 setningar).`
 
@@ -202,6 +91,7 @@ Svar kort og direkte (maksimum 3-4 setningar).`
     const orgCards = createOrganizationCards(foundOrganizations)
     console.log("[v0] Sending organization cards:", orgCards.length)
 
+    // Return response with organizations embedded in data
     return new Response(
       new ReadableStream({
         async start(controller) {
@@ -215,6 +105,7 @@ Svar kort og direkte (maksimum 3-4 setningar).`
             while (true) {
               const { done, value } = await reader.read()
               if (done) {
+                // Send organizations as data at the end
                 const dataLine = `2:[${JSON.stringify({ organizations: orgCards })}]\n`
                 controller.enqueue(new TextEncoder().encode(dataLine))
                 controller.close()

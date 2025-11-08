@@ -4,43 +4,12 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { createStaticClient } from "@/lib/supabase/static"
 
 interface OrganizationPageProps {
   params: Promise<{
     id: string
   }>
 }
-
-export async function generateStaticParams() {
-  const supabase = createStaticClient()
-
-  // Strategi: Generer statiske sider for dei mest brukte/populære organisasjonane
-  // Resten handterast dynamisk med ISR
-  const { data: organizations, error } = await supabase
-    .from("organizations_with_fylke")
-    .select("id")
-    .eq("registrert_i_frivillighetsregisteret", true)
-    .not("hjemmeside", "is", null) // Prioriter org med nettside
-    .order("antall_ansatte", { ascending: false, nullsLast: true })
-    .limit(1000) // Generer 1000 mest relevante først
-
-  if (error) {
-    console.error("[v0] Error fetching organization IDs for static generation:", error)
-    return []
-  }
-
-  console.log(`[v0] Generating static params for ${organizations?.length || 0} organizations`)
-
-  return (
-    organizations?.map((org) => ({
-      id: org.id,
-    })) || []
-  )
-}
-
-export const dynamicParams = true
-export const revalidate = 3600 // Revalidate every hour
 
 export default async function OrganizationPage({ params }: OrganizationPageProps) {
   const { id } = await params

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server"
-import { searchVectorStore, extractOrganizationIds } from "@/lib/vector-search"
 
 export interface Organization {
   id: string
@@ -29,7 +28,6 @@ export interface Organization {
 }
 
 export interface SearchParams {
-  query?: string // Legg til query-parameter for vector search
   location?: string
   interests?: string[]
   ageGroup?: string
@@ -108,121 +106,6 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
   }
 
   return organizations.slice(0, params.limit || 10)
-}
-
-export async function searchOrganizationsWithVector(params: SearchParams): Promise<Organization[]> {
-  const supabase = await createClient()
-
-  let searchQuery = ""
-
-  // Prioriter direkte query først
-  if (params.query && params.query.trim().length > 0) {
-    searchQuery = params.query.trim()
-  } else {
-    // Bygg query frå parametrar
-    const queryParts: string[] = []
-
-    if (params.interests && params.interests.length > 0) {
-      queryParts.push(`Interesser: ${params.interests.join(", ")}`)
-    }
-    if (params.ageGroup) {
-      queryParts.push(`Aldersgruppe: ${params.ageGroup}`)
-    }
-    if (params.location) {
-      queryParts.push(`Stad: ${params.location}`)
-    }
-
-    searchQuery = queryParts.join(". ")
-  }
-
-  console.log("[v0] Vector search query:", searchQuery)
-
-  if (!searchQuery || searchQuery.trim().length < 2) {
-    console.log("[v0] No valid query, using default SQL search")
-    return searchOrganizations(params)
-  }
-
-  try {
-    // Søk i vector store med høgare limit for betre resultat
-    const vectorResults = await searchVectorStore(searchQuery, 30)
-    console.log("[v0] Vector results:", vectorResults.length)
-
-    if (vectorResults.length === 0) {
-      // Fallback til vanleg SQL-søk
-      console.log("[v0] No vector results, falling back to SQL search")
-      return searchOrganizations(params)
-    }
-
-    // Ekstraher organisasjons-IDer
-    const orgIds = extractOrganizationIds(vectorResults)
-    console.log("[v0] Extracted org IDs:", orgIds.length)
-
-    if (orgIds.length === 0) {
-      console.log("[v0] No valid org IDs from vector results")
-      return searchOrganizations(params)
-    }
-
-    // Hent organisasjonane frå database
-    const { data, error } = await supabase
-      .from("organizations_with_fylke")
-      .select(
-        `
-      id,
-      organisasjonsnummer,
-      navn,
-      organisasjonsform_beskrivelse,
-      naeringskode1_beskrivelse,
-      aktivitet,
-      vedtektsfestet_formaal,
-      forretningsadresse_poststed,
-      forretningsadresse_kommune,
-      forretningsadresse_adresse,
-      forretningsadresse_postnummer,
-      fylke,
-      hjemmeside,
-      epost,
-      telefon
-    `,
-      )
-      .in("id", orgIds)
-      .eq("registrert_i_frivillighetsregisteret", true)
-
-    if (error) {
-      console.error("[v0] Error fetching organizations from vector IDs:", error)
-      return searchOrganizations(params)
-    }
-
-    let organizations = data as Organization[]
-    console.log("[v0] Fetched organizations from DB:", organizations.length)
-
-    if (organizations.length === 0) {
-      console.log("[v0] No organizations found in DB, falling back to SQL")
-      return searchOrganizations(params)
-    }
-
-    // Opprett ein map av vector scores
-    const scoreMap = new Map(vectorResults.map((r) => [r.id, r.score]))
-
-    organizations = organizations.sort((a, b) => {
-      // Først sorter etter vector score
-      const scoreA = scoreMap.get(a.id) || 0
-      const scoreB = scoreMap.get(b.id) || 0
-
-      if (Math.abs(scoreA - scoreB) > 0.05) {
-        return scoreB - scoreA // Høgare score først
-      }
-
-      // Viss scorane er like, sorter etter plassering
-      const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune, params.userFylke)
-      const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune, params.userFylke)
-      return priorityA - priorityB
-    })
-
-    return organizations.slice(0, params.limit || 5)
-  } catch (error) {
-    console.error("[v0] Vector search error:", error)
-    return searchOrganizations(params)
-  }
 }
 
 export async function getOrganizationById(id: string): Promise<Organization | null> {
