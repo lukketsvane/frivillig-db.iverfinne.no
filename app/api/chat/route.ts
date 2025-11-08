@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   try {
     const organizations = await searchOrganizations({
       location,
-      limit: 5,
+      limit: 500,
       userPostnummer: userLocation?.postnummer,
       userKommune: userLocation?.kommune,
       userFylke: userLocation?.fylke,
