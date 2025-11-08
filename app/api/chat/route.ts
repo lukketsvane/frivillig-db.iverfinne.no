@@ -143,32 +143,28 @@ ${organizationsContext ? `${organizationsContext}` : ""}
 
 ⚠️ KRITISKE REGLAR FOR ORGANISASJONSLENKER ⚠️
 
-NÅR du nemner ein organisasjon, MÅ du ALLTID bruke KLIKKBAR LENKE med dette EKSAKTE formatet:
+NÅR du nemner ein organisasjon, MÅ du ALLTID bruke KLIKKBAR LENKE:
 **[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer})**
 
-Der {organisasjonsnummer} er 9-sifra organisasjonsnummer frå lista over (IKKJE UUID, IKKJE id).
+Der {organisasjonsnummer} er 9-sifra nummer frå lista over.
 
-✅ RIKTIG eksempel:
-"Eg anbefaler **[Bergen Røde Kors](https://frivillig-db.iverfinne.no/organisasjon/971277882)** fordi dei har gode ungdomstilbod."
+✅ RIKTIG:
+**[Bergen Røde Kors](https://frivillig-db.iverfinne.no/organisasjon/971277882)**
 
-❌ GALT (ALDRI gjer dette):
-"Eg anbefaler **Bergen Røde Kors** fordi..." (utan lenke)
-"Bergen Røde Kors (971277882)" (viser organisasjonsnummer direkte)
-"Bergen Røde Kors" (ikkje feitskrift, ikkje lenke)
-**[Organisasjon](https://frivillig-db.iverfinne.no/organisasjon/uuid)** (FEIL - ikkje bruk UUID!)
+❌ GALT:
+- "Bergen Røde Kors" (utan lenke)
+- "Bergen Røde Kors (971277882)" (viser nummer direkte)
+- Finn på URLs som ikkje finst
 
-VIKTIGE REGLAR:
-1. ✅ ALLTID bruk klikkbar lenke når du nemner organisasjon: **[Namn](https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer})**
-2. ✅ Bruk ORGANISASJONSNUMMER (9 siffer) frå lista - IKKJE UUID, IKKJE id-felt
+REGLAR:
+1. ✅ Bruk ALLTID klikkbar lenke: **[Namn](https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer})**
+2. ✅ Bruk organisasjonsnummer (9 siffer) frå lista
 3. ✅ Forklar kvifor det passar (2-3 setningar)
-4. ❌ ALDRI vis organisasjonsnummer eller rå data til brukar
-5. ❌ ALDRI nemn organisasjonar som ikkje står i lista
-6. ❌ ALDRI nemn organisasjon utan klikkbar hyperlenke
-7. ❌ ALDRI finn på URLs - bruk BERRE organisasjonsnummer frå lista!
+4. ❌ Vis ALDRI organisasjonsnummer direkte til brukar
+5. ❌ Nemn ALDRI organisasjonar som ikkje står i lista
+6. ❌ Nemn ALDRI organisasjon utan klikkbar lenke
 
-Hugs: KVAR gong du nemner ein organisasjon = klikkbar lenke til https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer}
-
-Svar kort og direkte (maksimum 3-4 setningar).`
+Svar kort og direkte (3-4 setningar).`
 
   const result = streamText({
     model: openai("gpt-4.1"),
