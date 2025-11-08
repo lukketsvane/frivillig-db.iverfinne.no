@@ -123,9 +123,12 @@ export async function POST(req: Request) {
         })
 
         organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        organizationsContext += `🚨 KRITISK: Bruk ORGANISASJONSNUMMER over til å lage hyperlenker.\n`
-        organizationsContext += `🚨 Eksempel: **[${organizations[0].navn}](https://frivillig-db.iverfinne.no/organisasjon/${organizations[0].organisasjonsnummer})**\n`
-        organizationsContext += "🚨 ALDRI finn på URLs som ikkje finst! Bruk BERRE organisasjonsnummer frå lista.\n"
+        organizationsContext += `🚨 GYLDIGE ORGANISASJONSNUMMER (KOPIER DESSE EKSAKT):\n`
+        organizationsContext += Array.from(validOrgnr).map(orgnr => `- ${orgnr}`).join('\n')
+        organizationsContext += "\n\n"
+        organizationsContext += `🚨 Du kan BERRE nemne organisasjonar frå lista over.\n`
+        organizationsContext += `🚨 Bruk EKSAKT organisasjonsnummer frå lista når du lagar lenker.\n`
+        organizationsContext += `🚨 Format: **[Namn frå lista](https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer})**\n`
         organizationsContext += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
       }
     } catch (error) {
@@ -141,30 +144,26 @@ ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
 
 ${organizationsContext ? `${organizationsContext}` : ""}
 
-⚠️ KRITISKE REGLAR FOR ORGANISASJONSLENKER ⚠️
+🚨🚨🚨 ABSOLUTT KRITISKE REGLAR 🚨🚨🚨
 
-NÅR du nemner ein organisasjon, MÅ du ALLTID bruke KLIKKBAR LENKE:
-**[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer})**
+1. Du kan BERRE nemne organisasjonar som står i "ORGANISASJONAR FRÅ DATABASEN" over.
+2. ALDRI finn på organisasjonar. ALDRI nemn organisasjonar som ikkje er i lista.
+3. Når du nemner ein organisasjon, KOPIER organisasjonsnummeret EKSAKT frå lista.
+4. Bruk ALLTID dette formatet: **[Namn](https://frivillig-db.iverfinne.no/organisasjon/{EKSAKT_ORGANISASJONSNUMMER})**
 
-Der {organisasjonsnummer} er 9-sifra nummer frå lista over.
+RIKTIG eksempel (KOPIERT frå lista):
+- Lista seier: "Bergen Idrettslag, Organisasjonsnummer: 971277882"
+- Du skriv: **[Bergen Idrettslag](https://frivillig-db.iverfinne.no/organisasjon/971277882)**
 
-✅ RIKTIG:
-**[Bergen Røde Kors](https://frivillig-db.iverfinne.no/organisasjon/971277882)**
+GALT (ALDRI gjør dette):
+❌ Nemne organisasjon som ikkje er i lista
+❌ Finne på organisasjonsnummer
+❌ Skrive organisasjon utan lenke
+❌ Vise organisasjonsnummer direkte til brukar
 
-❌ GALT:
-- "Bergen Røde Kors" (utan lenke)
-- "Bergen Røde Kors (971277882)" (viser nummer direkte)
-- Finn på URLs som ikkje finst
+Viss lista er tom eller brukar spør om noko som ikkje er i lista, sei: "Eg fann ingen organisasjonar som passar. Prøv eit anna søk."
 
-REGLAR:
-1. ✅ Bruk ALLTID klikkbar lenke: **[Namn](https://frivillig-db.iverfinne.no/organisasjon/{organisasjonsnummer})**
-2. ✅ Bruk organisasjonsnummer (9 siffer) frå lista
-3. ✅ Forklar kvifor det passar (2-3 setningar)
-4. ❌ Vis ALDRI organisasjonsnummer direkte til brukar
-5. ❌ Nemn ALDRI organisasjonar som ikkje står i lista
-6. ❌ Nemn ALDRI organisasjon utan klikkbar lenke
-
-Svar kort og direkte (3-4 setningar).`
+Svar kort (2-3 setningar per organisasjon).`
 
   const result = streamText({
     model: openai("gpt-4.1"),
