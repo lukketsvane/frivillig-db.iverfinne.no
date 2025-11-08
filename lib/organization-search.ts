@@ -276,7 +276,7 @@ export async function searchOrganizationsWithVector(params: SearchParams): Promi
 }
 
 /**
- * Hent organisasjon basert på organisasjonsnummer OR UUID frå Supabase
+ * Hent organisasjon basert på organisasjonsnummer frå Supabase
  */
 export async function getOrganizationById(idOrOrgnr: string): Promise<Organization | null> {
   const isOrgnr = /^\d{9}$/.test(idOrOrgnr)
