@@ -29,20 +29,21 @@ export async function POST(req: Request) {
   let organizationsContext = ""
   let foundOrganizations: any[] = []
   try {
+    const maxOrganizations = 5
     const organizations = await searchOrganizations({
       location,
-      limit: 500,
+      limit: maxOrganizations,
       userPostnummer: userLocation?.postnummer,
       userKommune: userLocation?.kommune,
       userFylke: userLocation?.fylke,
     })
 
-    foundOrganizations = organizations
-    console.log("[v0] Found organizations:", foundOrganizations.length)
+    foundOrganizations = organizations.slice(0, maxOrganizations)
+    console.log("[v0] Found organizations:", organizations.length)
 
-    if (organizations.length > 0) {
+    if (foundOrganizations.length > 0) {
       organizationsContext = "\n\nRelevante frivilligorganisasjonar:\n"
-      organizations.forEach((org) => {
+      foundOrganizations.forEach((org) => {
         organizationsContext += formatOrganizationForChat(org)
       })
     }
