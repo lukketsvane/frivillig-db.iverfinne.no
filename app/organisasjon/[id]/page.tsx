@@ -5,6 +5,21 @@ import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+const formatAddress = (address?: string | string[] | null): string => {
+  if (!address) {
+    return ""
+  }
+
+  if (Array.isArray(address)) {
+    return address
+      .map((line) => (typeof line === "string" ? line.trim() : ""))
+      .filter((line) => line.length > 0)
+      .reduce((acc, line) => (acc.length > 0 ? `${acc}, ${line}` : line), "")
+  }
+
+  return address.trim()
+}
+
 interface OrganizationPageProps {
   params: Promise<{
     id: string
@@ -18,6 +33,15 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
   if (!organization) {
     notFound()
   }
+
+  const formattedAddress = formatAddress(organization.forretningsadresse_adresse)
+  const addressPostnummer = organization.forretningsadresse_postnummer?.trim()
+  const addressPoststed = organization.forretningsadresse_poststed?.trim()
+  const addressKommune = organization.forretningsadresse_kommune?.trim()
+
+  const hasAddressInformation = [formattedAddress, addressPostnummer, addressPoststed].some(
+    (value) => typeof value === "string" && value.length > 0,
+  )
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -60,23 +84,22 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
           <div>
             <h2 className="text-lg font-semibold mb-3">Kontaktinformasjon</h2>
             <div className="space-y-3">
-              {organization.forretningsadresse_poststed && (
+              {hasAddressInformation && (
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <p className="text-foreground">
-                      {organization.forretningsadresse_adresse &&
-                        organization.forretningsadresse_adresse.length > 0 && (
-                          <>
-                            {organization.forretningsadresse_adresse.join(", ")}
-                            <br />
-                          </>
-                        )}
-                      {organization.forretningsadresse_postnummer && <>{organization.forretningsadresse_postnummer} </>}
-                      {organization.forretningsadresse_poststed}
+                      {formattedAddress && (
+                        <>
+                          {formattedAddress}
+                          <br />
+                        </>
+                      )}
+                      {addressPostnummer && <>{addressPostnummer}{addressPoststed ? " " : ""}</>}
+                      {addressPoststed}
                     </p>
-                    {organization.forretningsadresse_kommune && (
-                      <p className="text-sm text-muted-foreground">{organization.forretningsadresse_kommune}</p>
+                    {addressKommune && (
+                      <p className="text-sm text-muted-foreground">{addressKommune}</p>
                     )}
                   </div>
                 </div>
