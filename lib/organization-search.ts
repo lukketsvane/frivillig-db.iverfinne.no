@@ -85,6 +85,7 @@ export interface Organization {
 }
 
 export interface SearchParams {
+  query?: string // General search query for name, activity, purpose
   location?: string
   interests?: string[]
   ageGroup?: string
@@ -114,6 +115,39 @@ function calculateLocationPriority(
   return 4 // Andre plassar
 }
 
+function calculateRelevanceScore(org: Organization, query: string): number {
+  if (!query) return 0
+
+  const searchTerm = query.toLowerCase()
+  let score = 0
+
+  // Exact name match gets highest score
+  if (org.navn?.toLowerCase() === searchTerm) {
+    score += 100
+  } else if (org.navn?.toLowerCase().startsWith(searchTerm)) {
+    score += 50
+  } else if (org.navn?.toLowerCase().includes(searchTerm)) {
+    score += 25
+  }
+
+  // Activity match
+  if (org.aktivitet?.toLowerCase().includes(searchTerm)) {
+    score += 15
+  }
+
+  // Purpose match
+  if (org.vedtektsfestet_formaal?.toLowerCase().includes(searchTerm)) {
+    score += 10
+  }
+
+  // Industry code match
+  if (org.naeringskode1_beskrivelse?.toLowerCase().includes(searchTerm)) {
+    score += 8
+  }
+
+  return score
+}
+
 export async function searchOrganizations(params: SearchParams): Promise<Organization[]> {
   const supabase = await createClient()
 
@@ -125,6 +159,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
       navn,
       organisasjonsform_beskrivelse,
       naeringskode1_beskrivelse,
+      naeringskode2_beskrivelse,
       aktivitet,
       vedtektsfestet_formaal,
       forretningsadresse_poststed,
@@ -137,6 +172,13 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     .eq("registrert_i_frivillighetsregisteret", true)
     .not("navn", "is", null)
     .limit(params.limit || 1000) // Hentar fleire for å sortere lokalt
+
+  // Filter by general search query
+  if (params.query) {
+    query = query.or(
+      `navn.ilike.%${params.query}%,aktivitet.ilike.%${params.query}%,vedtektsfestet_formaal.ilike.%${params.query}%,naeringskode1_beskrivelse.ilike.%${params.query}%`,
+    )
+  }
 
   // Filter by location if provided
   if (params.location) {
@@ -154,7 +196,15 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
 
   let organizations = data as Organization[]
 
-  if (params.userPostnummer || params.userKommune || params.userFylke) {
+  // Apply relevance scoring if query is provided
+  if (params.query) {
+    organizations = organizations.sort((a, b) => {
+      const scoreA = calculateRelevanceScore(a, params.query!)
+      const scoreB = calculateRelevanceScore(b, params.query!)
+      return scoreB - scoreA // Higher score first
+    })
+  } else if (params.userPostnummer || params.userKommune || params.userFylke) {
+    // Fall back to location-based sorting
     organizations = organizations.sort((a, b) => {
       const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune, params.userFylke)
       const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune, params.userFylke)
