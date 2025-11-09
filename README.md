@@ -35,4 +35,4 @@ Set the following variables in your local `.env` file and in your deployment pla
 
 | Variable | Description |
 | --- | --- |
-| `OPENAI_API_KEY` | API key used by the chat endpoint for OpenAI model access. |
+| `OPENAI_API_KEY` | **Required.** API key used by the chat endpoint for OpenAI model access. |
