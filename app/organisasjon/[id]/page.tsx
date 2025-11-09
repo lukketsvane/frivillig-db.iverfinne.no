@@ -173,6 +173,14 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
               </div>
             )}
 
+            {organization.stiftelsesdato && (
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Stiftelsesdato: </span>
+                <span className="text-sm text-foreground">{organization.stiftelsesdato}</span>
+              </div>
+            )}
+
             {organization.registreringsdato_frivillighetsregisteret && (
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -180,6 +188,13 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
                 <span className="text-sm text-foreground">
                   {new Date(organization.registreringsdato_frivillighetsregisteret).toLocaleDateString("nn-NO")}
                 </span>
+              </div>
+            )}
+
+            {organization.kontonummer && (
+              <div>
+                <span className="text-sm text-muted-foreground">Kontonummer: </span>
+                <span className="text-sm text-foreground">{organization.kontonummer}</span>
               </div>
             )}
           </div>
