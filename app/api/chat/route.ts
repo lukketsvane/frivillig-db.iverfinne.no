@@ -72,12 +72,18 @@ Eksempel: [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123) er
 
 Svar kort og direkte (maksimum 3-4 setningar).`
 
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    console.error("[v0] Missing OPENAI_API_KEY environment variable")
+    throw new Error("OPENAI_API_KEY environment variable is required")
+  }
+
   const result = streamText({
     model: "anthropic/claude-sonnet-4.5",
     messages: coreMessages,
     abortSignal: req.signal,
     system: systemPrompt,
-    apiKey: "vck_5GJE6iWRKwefpMlSNR8ObURjaSdP3iYB88aJZXNu5V4EN5jpqL4aVT1f",
+    apiKey,
   })
 
   const stream = result.toUIMessageStreamResponse({
