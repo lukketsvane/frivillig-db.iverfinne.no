@@ -18,7 +18,7 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
   const supabase = await createClient()
 
   let query = supabase
-    .from("organizations")
+    .from("organisasjoner")
     .select(
       `
       id,

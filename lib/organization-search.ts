@@ -2,29 +2,45 @@ import { createClient } from "@/lib/supabase/server"
 
 export interface Organization {
   id: string
-  organisasjonsnummer: string
+  organisasjonsnummer: number // Changed from string to match bigint
   navn: string
+  organisasjonsform_kode?: string
   organisasjonsform_beskrivelse: string
+  naeringskode1_kode?: string
   naeringskode1_beskrivelse: string
+  naeringskode2_kode?: string
   naeringskode2_beskrivelse?: string
+  naeringskode3_kode?: string
   naeringskode3_beskrivelse?: string
   aktivitet: string
   vedtektsfestet_formaal: string
+  forretningsadresse_land?: string
+  forretningsadresse_landkode?: string
   forretningsadresse_poststed: string
   forretningsadresse_kommune: string
+  forretningsadresse_kommunenummer?: string
   forretningsadresse_adresse: string
   forretningsadresse_postnummer: string
+  postadresse_land?: string
+  postadresse_landkode?: string
   postadresse_poststed: string
   postadresse_postnummer: string
   postadresse_adresse: string
+  postadresse_kommune?: string
+  postadresse_kommunenummer?: string
   hjemmeside: string
   epost: string
   telefon: string
   mobiltelefon?: string
-  antall_ansatte?: number
+  antall_ansatte?: string // Changed from number to text to match new schema
+  har_registrert_antall_ansatte?: boolean
   stiftelsesdato?: string
   registreringsdato_frivillighetsregisteret?: string
-  fylke?: string
+  registrert_i_frivillighetsregisteret?: boolean
+  registrert_i_mvaregisteret?: boolean
+  registrert_i_foretaksregisteret?: boolean
+  registrert_i_stiftelsesregisteret?: boolean
+  fylke?: string // This field may need to be calculated from kommune if not in new schema
 }
 
 export interface SearchParams {
@@ -50,8 +66,9 @@ function calculateLocationPriority(
   if (userKommune && org.forretningsadresse_kommune?.toLowerCase().includes(userKommune.toLowerCase())) {
     return 2 // Same kommune
   }
-  if (userFylke && org.fylke?.toLowerCase().includes(userFylke.toLowerCase())) {
-    return 3 // Same fylke
+  // Note: fylke field may not be available in new schema, keeping for compatibility
+  if (userFylke && org.forretningsadresse_kommune?.toLowerCase().includes(userFylke.toLowerCase())) {
+    return 3 // Same fylke/region (approximated by kommune)
   }
   return 4 // Andre plassar
 }
@@ -60,7 +77,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
   const supabase = await createClient()
 
   let query = supabase
-    .from("organizations_with_fylke")
+    .from("organisasjoner")
     .select(`
       id,
       organisasjonsnummer,
@@ -72,7 +89,6 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
       forretningsadresse_poststed,
       forretningsadresse_kommune,
       forretningsadresse_postnummer,
-      fylke,
       hjemmeside,
       epost,
       telefon
@@ -84,7 +100,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
   // Filter by location if provided
   if (params.location) {
     query = query.or(
-      `forretningsadresse_poststed.ilike.%${params.location}%,forretningsadresse_kommune.ilike.%${params.location}%,fylke.ilike.%${params.location}%`,
+      `forretningsadresse_poststed.ilike.%${params.location}%,forretningsadresse_kommune.ilike.%${params.location}%`,
     )
   }
 
@@ -112,14 +128,18 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("organizations")
+    .from("organisasjoner")
     .select(`
       id,
       organisasjonsnummer,
       navn,
+      organisasjonsform_kode,
       organisasjonsform_beskrivelse,
+      naeringskode1_kode,
       naeringskode1_beskrivelse,
+      naeringskode2_kode,
       naeringskode2_beskrivelse,
+      naeringskode3_kode,
       naeringskode3_beskrivelse,
       aktivitet,
       vedtektsfestet_formaal,
@@ -135,6 +155,7 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
       telefon,
       mobiltelefon,
       antall_ansatte,
+      har_registrert_antall_ansatte,
       stiftelsesdato,
       registreringsdato_frivillighetsregisteret
     `)
