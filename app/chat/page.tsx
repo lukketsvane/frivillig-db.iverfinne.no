@@ -46,16 +46,7 @@ export default function ChatPage() {
                 </div>
                 <Card className={`p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    {message.parts.map((part, index) => {
-                      if (part.type === "text") {
-                        return (
-                          <p key={index} className="m-0 whitespace-pre-wrap">
-                            {part.text}
-                          </p>
-                        )
-                      }
-                      return null
-                    })}
+                    <p className="m-0 whitespace-pre-wrap">{message.content}</p>
                   </div>
                 </Card>
               </div>
