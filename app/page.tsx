@@ -177,23 +177,30 @@ export default function ChatPage() {
           })
 
           if (!response.ok) {
-            throw new Error("Failed to analyze attachments")
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || "Failed to analyze attachments")
           }
 
           const data = await response.json()
 
-          sendMessage({ text: message || "Analyser desse vedlegga og gi meg anbefalingar" })
+          const combinedMessage = `${data.recommendation}\n\n**Profil:**\n${data.profile}`
+          sendMessage({
+            text: combinedMessage,
+            data: { organizations: data.organizations },
+          })
 
           setAttachments([])
+          e.currentTarget.reset()
         } catch (error) {
           console.error("[v0] Error uploading attachments:", error)
           alert("Kunne ikkje laste opp vedlegg. Prøv igjen.")
+          return
         }
       } else {
         sendMessage({ text: message })
+        e.currentTarget.reset()
       }
 
-      e.currentTarget.reset()
       inputRef.current?.focus()
     }
   }
