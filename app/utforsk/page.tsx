@@ -38,14 +38,12 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
     .order("navn")
     .limit(50)
 
-  // Filter by search term
   if (params.sok) {
     query = query.or(
-      `navn.ilike.%${params.sok}%,aktivitet.ilike.%${params.sok}%,vedtektsfestet_formaal.ilike.%${params.sok}%`,
+      `navn.ilike.%${params.sok}%,aktivitet.ilike.%${params.sok}%,vedtektsfestet_formaal.ilike.%${params.sok}%,naeringskode1_beskrivelse.ilike.%${params.sok}%`,
     )
   }
 
-  // Filter by location
   if (params.stad) {
     query = query.or(
       `forretningsadresse_poststed.ilike.%${params.stad}%,forretningsadresse_kommune.ilike.%${params.stad}%`,
@@ -73,10 +71,7 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
           </Link>
 
           <h1 className="text-4xl font-bold mb-2">Utforsk organisasjonar</h1>
-          <p className="text-lg text-muted-foreground">
-            Søk blant over 70 000 frivilligorganisasjonar i Noreg
-            {orgs.length > 0 && ` (viser ${orgs.length} resultat)`}
-          </p>
+          {orgs.length > 0 && <p className="text-lg text-muted-foreground">Viser {orgs.length} resultat</p>}
         </div>
 
         <Card className="mb-8">

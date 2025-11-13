@@ -57,6 +57,8 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
       navn,
       organisasjonsform_beskrivelse,
       naeringskode1_beskrivelse,
+      naeringskode2_beskrivelse,
+      naeringskode3_beskrivelse,
       aktivitet,
       vedtektsfestet_formaal,
       forretningsadresse_poststed,
@@ -70,7 +72,6 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     .not("navn", "is", null)
     .limit(params.limit || 1000) // Hentar fleire for å sortere lokalt
 
-  // Filter by location if provided
   if (params.location) {
     query = query.or(
       `forretningsadresse_poststed.ilike.%${params.location}%,forretningsadresse_kommune.ilike.%${params.location}%`,
@@ -84,9 +85,23 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     return []
   }
 
-  console.log("[v0] Found organizations:", data?.length || 0)
+  console.log("[v0] Found organizations before filtering:", data?.length || 0)
 
   let organizations = data as Organization[]
+
+  if (params.interests && params.interests.length > 0) {
+    organizations = organizations.filter((org) => {
+      const searchText =
+        `${org.navn} ${org.aktivitet} ${org.vedtektsfestet_formaal} ${org.naeringskode1_beskrivelse} ${org.naeringskode2_beskrivelse || ""} ${org.naeringskode3_beskrivelse || ""} ${org.organisasjonsform_beskrivelse}`.toLowerCase()
+
+      return params.interests!.some((interest) => {
+        const keywords = interest.toLowerCase().split(" ")
+        return keywords.some((keyword) => searchText.includes(keyword))
+      })
+    })
+
+    console.log("[v0] Organizations after interest filtering:", organizations.length)
+  }
 
   if (params.userPostnummer || params.userKommune) {
     organizations = organizations.sort((a, b) => {
