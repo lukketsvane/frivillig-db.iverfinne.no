@@ -198,8 +198,7 @@ export default function ChatPage() {
               <div className="text-center space-y-3 max-w-2xl">
                 <h2 className="text-xl text-foreground">Finn frivilligorganisasjonar som passar for deg!</h2>
                 <p className="text-base text-muted-foreground leading-relaxed">
-                  Ver spesifikk om alder, interesser og stad - så søkjer eg blant over 70 000 organisasjonar med ein
-                  gong.
+                  Ver spesifikk om alder, interesser og stad.
                 </p>
               </div>
 
