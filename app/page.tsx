@@ -16,11 +16,27 @@ import remarkGfm from "remark-gfm"
 
 type Theme = "light" | "dark"
 
-const EXAMPLE_PROMPTS = [
+const ALL_EXAMPLE_PROMPTS = [
   "54 år, erfaring innan leiing - vil bidra til lokalsamfunnet i Stavanger",
   "Vil dele kompetanse innan IT med nye innvandrarar. Korleis starte?",
   "Interessert i naturvern og vil lede lokale tiltak i Sogn og Fjordane",
   "50 år, ynskjer å bli mentor for unge i karrierestart. Organisasjonar i Bergen?",
+  "Pensjonist med bakgrunn i helse, vil hjelpe eldre i Trondheim",
+  "Erfaring som økonomisjef, vil gi råd til små bedrifter i Tromsø",
+  "Vil arrangere kulturarrangement for lokalsamfunnet i Kristiansand",
+  "55 år, lidenskapleg om idrett - vil trene ungdomslag i Oslo",
+  "Ønskjer å støtte flyktningar med integrasjon og språkopplæring i Drammen",
+  "Erfaring med mat og servering, vil hjelpe matbank i Fredrikstad",
+  "Vil lede miljøprosjekt for berekraftig utvikling i Haugesund",
+  "Pensjonist, glad i dyr - vil jobbe med dyrevelferd i Lillehammer",
+  "Pedagogisk bakgrunn, vil hjelpe barn med leksehjelp i Molde",
+  "Erfaring som ingeniør, vil inspirere unge til teknologifag i Bodø",
+  "Vil arbeide med likestilling og kvinners rettar i Ålesund",
+  "Pensjonist med erfaring i rettsvesen, vil gi juridisk rettleiing til familiar i Sarpsborg",
+  "Musikkinteressert, vil undervise barn og unge i Sandefjord",
+  "Vil støtte menneske med psykisk helse gjennom samtalegrupper i Arendal",
+  "Handverkserfaring, vil lære unge restaurering og håndverk i Hamar",
+  "Vil arbeide med demokrati og menneskerettar internasjonalt frå Porsgrunn",
 ]
 
 export default function ChatPage() {
@@ -33,7 +49,12 @@ export default function ChatPage() {
   } | null>(null)
   const [locationPermission, setLocationPermission] = useState<"prompt" | "granted" | "denied">("prompt")
 
+  const [examplePrompts, setExamplePrompts] = useState<string[]>([])
+
   useEffect(() => {
+    const shuffled = [...ALL_EXAMPLE_PROMPTS].sort(() => Math.random() - 0.5)
+    setExamplePrompts(shuffled.slice(0, 4))
+
     const savedTheme = localStorage.getItem("theme") as Theme | null
     const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
 
@@ -203,7 +224,7 @@ export default function ChatPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-                {EXAMPLE_PROMPTS.map((prompt, index) => (
+                {examplePrompts.map((prompt, index) => (
                   <button
                     key={index}
                     onClick={() => handleExampleClick(prompt)}
