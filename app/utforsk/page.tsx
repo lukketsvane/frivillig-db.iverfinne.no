@@ -167,7 +167,7 @@ export default function UtforskPage() {
   }, [searchQuery, locationQuery, fetchOrganizations])
 
   return (
-    <div className="min-h-screen pb-safe">
+    <div className="min-h-screen pb-safe bg-background">
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <div className="mb-6 flex items-center justify-between">
           <Link
