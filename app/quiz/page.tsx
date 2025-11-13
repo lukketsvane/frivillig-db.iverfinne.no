@@ -8,6 +8,7 @@ import Link from "next/link"
 import { QUIZ_QUESTIONS, VOLUNTEER_TYPE_RESULTS, type VolunteerType, getSearchKeywordsForType } from "@/lib/quiz-data"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
+import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 
 export default function QuizPage() {
   const [stage, setStage] = useState<"intro" | "question" | "result">("intro")
@@ -116,8 +117,27 @@ export default function QuizPage() {
   const progress = ((currentQuestion + 1) / QUIZ_QUESTIONS.length) * 100
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start p-3 gap-3 bg-background overflow-y-auto">
-      <Card className="w-full max-w-2xl flex flex-col shadow-lg">
+    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
+      <div className="fixed inset-0 -z-10 w-full h-full">
+        <Shader className="w-full h-full">
+          <SolidColor color="#000000" maskType="alpha" />
+          <Pixelate scale={15} maskType="alpha" opacity={0.84}>
+            <SineWave
+              color="#ffffff"
+              amplitude={0.87}
+              frequency={10.8}
+              speed={-0.5}
+              angle={6}
+              position={{ x: 0.5, y: 0.5 }}
+              thickness={0.22}
+              softness={0.44}
+              maskType="alpha"
+            />
+          </Pixelate>
+        </Shader>
+      </div>
+
+      <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center gap-4 shrink-0">
           <Button variant="ghost" size="icon" asChild className="active:scale-95">
             <Link href="/">
@@ -125,13 +145,13 @@ export default function QuizPage() {
               <span className="sr-only">Tilbake</span>
             </Link>
           </Button>
-          <h1 className="text-xl font-semibold">Tilbake til quiz</h1>
+          <h1 className="text-xl font-semibold">Quiz</h1>
         </div>
 
-        <div className="flex-1 p-6 flex flex-col">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {stage === "intro" && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 py-12">
-              <h2 className="text-4xl font-bold">Finn din frivilligtype!</h2>
+            <div className="flex flex-col items-center justify-center h-full text-center gap-6">
+              <h2 className="text-4xl font-bold leading-tight">Finn din frivilligtype!</h2>
               <p className="text-lg text-muted-foreground max-w-md leading-relaxed">
                 Er du usikker på hvilken type frivillig du er, eller hva som passer best for deg? Ta denne quizen for å
                 finne din ideelle frivilligtype og oppdag spennende muligheter!
@@ -143,7 +163,7 @@ export default function QuizPage() {
           )}
 
           {stage === "question" && (
-            <div className="flex-1 flex flex-col py-6">
+            <div className="flex flex-col py-6">
               <div className="mb-8">
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
@@ -153,7 +173,7 @@ export default function QuizPage() {
                 </p>
               </div>
 
-              <div className="flex-1 flex flex-col justify-center">
+              <div className="flex flex-col justify-center">
                 <h3 className="text-2xl font-semibold mb-6 leading-relaxed">{QUIZ_QUESTIONS[currentQuestion].text}</h3>
 
                 <div className="space-y-3">

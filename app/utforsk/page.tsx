@@ -1,121 +1,151 @@
-import { createClient } from "@/lib/supabase/server"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Search, MapPin, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { OrganizationGrid } from "@/components/organization-grid"
+import { OrganizationCard } from "@/components/organization-card"
 
-export const dynamic = "force-dynamic"
-
-interface SearchParams {
-  sok?: string
-  stad?: string
+interface Organization {
+  id: string
+  navn: string
+  aktivitet: string
+  vedtektsfestet_formaal: string
+  forretningsadresse_poststed: string
+  forretningsadresse_kommune: string
+  naeringskode1_beskrivelse: string
+  hjemmeside: string
+  epost: string
+  telefon: string
+  _score?: number
 }
 
-export default async function UtforskPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const params = await searchParams
-  const supabase = await createClient()
+export default function UtforskPage() {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [locationQuery, setLocationQuery] = useState("")
+  const [topResults, setTopResults] = useState<Organization[]>([])
+  const [allResults, setAllResults] = useState<Organization[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
-  let query = supabase
-    .from("organisasjonar")
-    .select(
-      `
-      id,
-      navn,
-      aktivitet,
-      vedtektsfestet_formaal,
-      forretningsadresse_poststed,
-      forretningsadresse_kommune,
-      naeringskode1_beskrivelse,
-      hjemmeside,
-      epost,
-      telefon
-    `,
-    )
-    .eq("registrert_i_frivillighetsregisteret", true)
-    .not("navn", "is", null)
-    .order("navn")
-    .limit(50)
+  const fetchOrganizations = useCallback(async (sok?: string, stad?: string) => {
+    if (!sok && !stad) {
+      setHasSearched(false)
+      setTopResults([])
+      setAllResults([])
+      return
+    }
 
-  if (params.sok) {
-    query = query.or(
-      `navn.ilike.%${params.sok}%,aktivitet.ilike.%${params.sok}%,vedtektsfestet_formaal.ilike.%${params.sok}%,naeringskode1_beskrivelse.ilike.%${params.sok}%`,
-    )
-  }
+    setIsLoading(true)
+    setHasSearched(true)
 
-  if (params.stad) {
-    query = query.or(
-      `forretningsadresse_poststed.ilike.%${params.stad}%,forretningsadresse_kommune.ilike.%${params.stad}%`,
-    )
-  }
+    const params = new URLSearchParams()
+    if (sok) params.append("sok", sok)
+    if (stad) params.append("stad", stad)
 
-  const { data: organizations, error } = await query
+    try {
+      const response = await fetch(`/api/organizations?${params.toString()}`)
+      const data = await response.json()
+      setTopResults(data.topResults || [])
+      setAllResults(data.organizations || [])
+    } catch (error) {
+      console.error("[v0] Error fetching organizations:", error)
+      setTopResults([])
+      setAllResults([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-  if (error) {
-    console.error("[v0] Error fetching organizations:", error)
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchOrganizations(searchQuery || undefined, locationQuery || undefined)
+    }, 300)
 
-  const orgs = organizations || []
+    return () => clearTimeout(timer)
+  }, [searchQuery, locationQuery, fetchOrganizations])
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-8">
+    <div className="min-h-screen pb-safe">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <div className="mb-6">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground active:opacity-70 transition-all mb-4 min-h-[44px]"
           >
             <ArrowLeft className="w-4 h-4" />
-            Tilbake til chat
+            Tilbake
           </Link>
-
-          <h1 className="text-4xl font-bold mb-2">Utforsk organisasjonar</h1>
         </div>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Søk og filtrer</CardTitle>
-            <CardDescription>Finn organisasjonar basert på namn, aktivitet eller stad</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form method="get" className="flex flex-col md:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  name="sok"
-                  defaultValue={params.sok}
-                  placeholder="Søk etter organisasjon, aktivitet eller formål..."
-                  className="pl-10 h-11"
-                />
-              </div>
-              <div className="flex-1 relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  name="stad"
-                  defaultValue={params.stad}
-                  placeholder="Stad eller kommune..."
-                  className="pl-10 h-11"
-                />
-              </div>
-              <Button type="submit" className="md:w-auto h-11 active:scale-95">
-                Søk
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <div className="mb-8">
+          <div className="relative mb-3">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Søk etter organisasjon eller aktivitet..."
+              className="pl-12 h-14 text-base rounded-xl border-2"
+              autoFocus
+            />
+          </div>
+          <div className="relative">
+            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              value={locationQuery}
+              onChange={(e) => setLocationQuery(e.target.value)}
+              placeholder="Stad eller kommune..."
+              className="pl-12 h-14 text-base rounded-xl border-2"
+            />
+          </div>
+        </div>
 
-        {orgs.length === 0 ? (
-          <Card>
+        {isLoading && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Søkjer...</p>
+          </div>
+        )}
+
+        {!isLoading && hasSearched && topResults.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4">Topp resultat</h2>
+            <div className="space-y-3">
+              {topResults.map((org) => (
+                <OrganizationCard key={org.id} organization={org} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && hasSearched && allResults.length > topResults.length && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Alle resultat</h2>
+            <div className="space-y-3">
+              {allResults.slice(topResults.length).map((org) => (
+                <OrganizationCard key={org.id} organization={org} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && hasSearched && topResults.length === 0 && (
+          <Card className="border-2">
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">Fann ingen organisasjonar som matchar søket ditt.</p>
-              <Button asChild variant="outline" className="mt-4 bg-transparent active:scale-95">
-                <Link href="/utforsk">Nullstill søk</Link>
-              </Button>
+              <p className="text-sm text-muted-foreground mt-2">Prøv andre søkjeord eller stad.</p>
             </CardContent>
           </Card>
-        ) : (
-          <OrganizationGrid organizations={orgs} />
+        )}
+
+        {!isLoading && !hasSearched && (
+          <Card className="border-2">
+            <CardContent className="py-12 text-center">
+              <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium mb-2">Søk etter frivilligorganisasjonar</p>
+              <p className="text-sm text-muted-foreground">Skriv inn aktivitet, interesser eller stad for å starte</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
