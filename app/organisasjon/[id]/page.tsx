@@ -13,7 +13,12 @@ interface OrganizationPageProps {
 
 export default async function OrganizationPage({ params }: OrganizationPageProps) {
   const { id } = await params
+
+  console.log("[v0] Loading organization with ID:", id)
+
   const organization = await getOrganizationById(id)
+
+  console.log("[v0] Organization found:", organization ? "yes" : "no")
 
   if (!organization) {
     notFound()

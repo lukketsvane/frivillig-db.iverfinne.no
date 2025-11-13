@@ -111,6 +111,8 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
 export async function getOrganizationById(id: string): Promise<Organization | null> {
   const supabase = await createClient()
 
+  console.log("[v0] Fetching organization from 'organisasjonar' table with ID:", id)
+
   const { data, error } = await supabase
     .from("organisasjonar")
     .select(`
@@ -145,6 +147,8 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
     console.error("[v0] Error fetching organization:", error)
     return null
   }
+
+  console.log("[v0] Successfully fetched organization:", data?.navn)
 
   return data as Organization
 }
