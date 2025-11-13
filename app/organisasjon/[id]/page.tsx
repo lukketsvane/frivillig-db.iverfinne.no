@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { toggleFavorite, isFavorite } from "@/lib/favorites"
 import { toggleBookmark, isBookmarked } from "@/lib/bookmarks"
@@ -7,17 +9,20 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar, Star, Bookmark, Copy } from "lucide-react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
 export default function OrganizationPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
 
   const [organization, setOrganization] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [isFav, setIsFav] = useState(false)
   const [isBook, setIsBook] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [currentX, setCurrentX] = useState(0)
+  const [isSwiping, setIsSwiping] = useState(false)
 
   useEffect(() => {
     async function loadOrganization() {
@@ -35,12 +40,33 @@ export default function OrganizationPage() {
         }
       } catch (error) {
         console.error("[v0] Error loading organization:", error)
-      } finally {
-        setLoading(false)
       }
     }
     loadOrganization()
   }, [id])
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches[0].clientX < 50) {
+      setStartX(e.touches[0].clientX)
+      setIsSwiping(true)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return
+    const diff = e.touches[0].clientX - startX
+    if (diff > 0 && diff < 200) {
+      setCurrentX(diff)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (isSwiping && currentX > 100) {
+      router.back()
+    }
+    setIsSwiping(false)
+    setCurrentX(0)
+  }
 
   const handleFavorite = () => {
     if (!organization) return
@@ -76,14 +102,6 @@ export default function OrganizationPage() {
     })
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
-        <p className="text-muted-foreground">Lastar...</p>
-      </div>
-    )
-  }
-
   if (!organization) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
@@ -93,8 +111,14 @@ export default function OrganizationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div
+      className="min-h-screen bg-background transition-transform duration-300"
+      style={{ transform: isSwiping ? `translateX(${currentX}px)` : "translateX(0)" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="max-w-4xl mx-auto space-y-6 p-4 md:p-8 animate-fadeIn">
         {/* Header with back button */}
         <div className="flex items-center justify-between gap-4">
           <Link href="/">
