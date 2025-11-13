@@ -5,11 +5,19 @@ import { z } from "zod"
 
 const geocodeCache = new Map<string, { lat: number; lon: number } | null>()
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function geocodeAddress(
   address: string,
   poststed: string,
   postnummer: string,
 ): Promise<{ lat: number; lon: number } | null> {
+  if (!poststed || !postnummer || postnummer.length < 4) {
+    return null
+  }
+
   const cacheKey = `${postnummer}-${poststed}`
 
   if (geocodeCache.has(cacheKey)) {
@@ -17,6 +25,8 @@ async function geocodeAddress(
   }
 
   try {
+    await delay(100)
+
     const query = address ? `${address}, ${postnummer} ${poststed}, Norway` : `${postnummer} ${poststed}, Norway`
 
     const response = await fetch(
@@ -28,18 +38,29 @@ async function geocodeAddress(
       },
     )
 
+    if (!response.ok) {
+      geocodeCache.set(cacheKey, null)
+      return null
+    }
+
     const data = await response.json()
 
     if (data && data.length > 0) {
-      const coords = {
-        lat: Number.parseFloat(data[0].lat),
-        lon: Number.parseFloat(data[0].lon),
+      const latStr = data[0].lat
+      const lonStr = data[0].lon
+
+      if (latStr && lonStr && !isNaN(Number.parseFloat(latStr)) && !isNaN(Number.parseFloat(lonStr))) {
+        const coords = {
+          lat: Number.parseFloat(latStr),
+          lon: Number.parseFloat(lonStr),
+        }
+        geocodeCache.set(cacheKey, coords)
+        return coords
       }
-      geocodeCache.set(cacheKey, coords)
-      return coords
     }
   } catch (error) {
-    console.error("[v0] Geocoding error:", error)
+    geocodeCache.set(cacheKey, null)
+    return null
   }
 
   geocodeCache.set(cacheKey, null)
@@ -195,8 +216,14 @@ Døme: "Eg vil jobbe med barn i Bergen" → keywords: ["barn"], categories: ["ba
   if (userLatitude && userLongitude) {
     console.log("[v0] Sorting by GPS proximity for user location")
 
+    const orgsToGeocode = scoredOrgs.slice(0, 50)
+
     const orgsWithDistance = await Promise.all(
-      scoredOrgs.map(async (org) => {
+      orgsToGeocode.map(async (org) => {
+        if (!org.forretningsadresse_poststed || !org.forretningsadresse_postnummer) {
+          return { ...org, distance: Number.POSITIVE_INFINITY }
+        }
+
         const coords = await geocodeAddress(
           org.forretningsadresse_adresse || "",
           org.forretningsadresse_poststed,
@@ -211,6 +238,8 @@ Døme: "Eg vil jobbe med barn i Bergen" → keywords: ["barn"], categories: ["ba
       }),
     )
 
+    const remainingOrgs = scoredOrgs.slice(50).map((org) => ({ ...org, distance: Number.POSITIVE_INFINITY }))
+
     // Sort by distance first, then by score for ties
     orgsWithDistance.sort((a, b) => {
       if (a.distance !== b.distance) {
@@ -219,8 +248,18 @@ Døme: "Eg vil jobbe med barn i Bergen" → keywords: ["barn"], categories: ["ba
       return b._score - a._score
     })
 
-    scoredOrgs = orgsWithDistance
-    console.log("[v0] Closest organization:", scoredOrgs[0]?.navn, "at", scoredOrgs[0]?.distance?.toFixed(1), "km")
+    scoredOrgs = [...orgsWithDistance, ...remainingOrgs]
+
+    const closestWithCoords = scoredOrgs.find((org) => org.distance !== Number.POSITIVE_INFINITY)
+    if (closestWithCoords) {
+      console.log(
+        "[v0] Closest organization:",
+        closestWithCoords.navn,
+        "at",
+        closestWithCoords.distance?.toFixed(1),
+        "km",
+      )
+    }
   } else {
     // Sort by score only
     scoredOrgs.sort((a, b) => b._score - a._score)
