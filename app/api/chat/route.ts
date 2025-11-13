@@ -131,11 +131,10 @@ EKSEMPEL PÅ RIKTIG SVAR:
 Ver kort og direkte (maksimum 3-4 setningar).`
 
   const result = streamText({
-    model: "anthropic/claude-sonnet-4.5",
+    model: "openai/gpt-4o-mini",
     messages: coreMessages,
     abortSignal: req.signal,
     system: systemPrompt,
-    apiKey: "vck_5GJE6iWRKwefpMlSNR8ObURjaSdP3iYB88aJZXNu5V4EN5jpqL4aVT1f",
   })
 
   const stream = result.toUIMessageStreamResponse({
