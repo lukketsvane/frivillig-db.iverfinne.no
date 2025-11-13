@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, MapPin, ArrowLeft, Star, Sparkles } from "lucide-react"
+import { Search, MapPin, ArrowLeft, Star, Sparkles, Bookmark } from "lucide-react"
 import Link from "next/link"
 import { OrganizationCard } from "@/components/organization-card"
 import { getFavorites, type FavoriteOrganization } from "@/lib/favorites"
+import { getBookmarks, type BookmarkedOrganization } from "@/lib/bookmarks"
 
 interface Organization {
   id: string
@@ -23,18 +24,25 @@ interface Organization {
 }
 
 export default function UtforskPage() {
-  const [activeTab, setActiveTab] = useState<"search" | "favorites" | "recommended">("search")
+  const [activeTab, setActiveTab] = useState<"search" | "favorites" | "recommended" | "bookmarks">("search")
   const [searchQuery, setSearchQuery] = useState("")
   const [locationQuery, setLocationQuery] = useState("")
   const [topResults, setTopResults] = useState<Organization[]>([])
   const [allResults, setAllResults] = useState<Organization[]>([])
   const [hasSearched, setHasSearched] = useState(false)
   const [favorites, setFavorites] = useState<FavoriteOrganization[]>([])
+  const [bookmarks, setBookmarks] = useState<BookmarkedOrganization[]>([])
   const [recommendedOrgs, setRecommendedOrgs] = useState<Organization[]>([])
 
   useEffect(() => {
     if (activeTab === "favorites") {
       setFavorites(getFavorites())
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab === "bookmarks") {
+      setBookmarks(getBookmarks())
     }
   }, [activeTab])
 
@@ -169,26 +177,37 @@ export default function UtforskPage() {
 
           <div className="flex gap-2">
             <button
-              onClick={() => setActiveTab("favorites")}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg min-h-[44px] transition-colors ${
-                activeTab === "favorites"
-                  ? "bg-foreground text-background"
-                  : "bg-accent text-foreground hover:bg-accent/80"
-              }`}
-            >
-              <Star className="w-4 h-4" />
-              Favoritter
-            </button>
-            <button
               onClick={() => setActiveTab("recommended")}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg min-h-[44px] transition-colors ${
+              className={`inline-flex items-center justify-center p-3 rounded-lg min-w-[44px] min-h-[44px] transition-colors ${
                 activeTab === "recommended"
                   ? "bg-foreground text-background"
                   : "bg-accent text-foreground hover:bg-accent/80"
               }`}
+              aria-label="Anbefalt"
             >
-              <Sparkles className="w-4 h-4" />
-              Anbefalt
+              <Sparkles className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setActiveTab("favorites")}
+              className={`inline-flex items-center justify-center p-3 rounded-lg min-w-[44px] min-h-[44px] transition-colors ${
+                activeTab === "favorites"
+                  ? "bg-foreground text-background"
+                  : "bg-accent text-foreground hover:bg-accent/80"
+              }`}
+              aria-label="Favoritter"
+            >
+              <Star className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setActiveTab("bookmarks")}
+              className={`inline-flex items-center justify-center p-3 rounded-lg min-w-[44px] min-h-[44px] transition-colors ${
+                activeTab === "bookmarks"
+                  ? "bg-foreground text-background"
+                  : "bg-accent text-foreground hover:bg-accent/80"
+              }`}
+              aria-label="Bokmerke"
+            >
+              <Bookmark className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -265,6 +284,24 @@ export default function UtforskPage() {
               </Card>
             ) : (
               favorites.map((org) => <OrganizationCard key={org.id} organization={org} />)
+            )}
+          </div>
+        )}
+
+        {activeTab === "bookmarks" && (
+          <div className="space-y-3">
+            {bookmarks.length === 0 ? (
+              <Card className="border-2">
+                <CardContent className="py-12 text-center">
+                  <Bookmark className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-lg font-medium mb-2">Ingen bokmerke ennå</p>
+                  <p className="text-sm text-muted-foreground">
+                    Trykk på bokmerke-ikonet på ein organisasjon for å leggje til
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              bookmarks.map((org) => <OrganizationCard key={org.id} organization={org} />)
             )}
           </div>
         )}
