@@ -62,6 +62,7 @@ export default function ChatPage() {
   const [examplePrompts, setExamplePrompts] = useState<string[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [isAgentMode, setIsAgentMode] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -165,10 +166,17 @@ export default function ChatPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    if (isProcessing) {
+      return
+    }
+
     const formData = new FormData(e.currentTarget)
     const message = formData.get("message") as string
 
     if (message.trim() || attachments.length > 0) {
+      setIsProcessing(true)
+
       if (attachments.length > 0) {
         setIsAgentMode(true)
 
@@ -215,12 +223,17 @@ export default function ChatPage() {
         } catch (error) {
           console.error("[v0] Error uploading attachments:", error)
           alert("Kunne ikkje laste opp vedlegg. Prøv igjen.")
-          return
+        } finally {
+          setIsProcessing(false)
         }
       } else {
-        sendMessage({ text: message })
-        if (formRef.current) {
-          formRef.current.reset()
+        try {
+          await sendMessage({ text: message })
+          if (formRef.current) {
+            formRef.current.reset()
+          }
+        } finally {
+          setIsProcessing(false)
         }
       }
 
@@ -243,10 +256,12 @@ export default function ChatPage() {
   }
 
   const handleFileSelect = () => {
+    if (isProcessing) return
     fileInputRef.current?.click()
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isProcessing) return
     const files = Array.from(e.target.files || [])
     setAttachments((prev) => [...prev, ...files])
     if (fileInputRef.current) {
@@ -256,6 +271,10 @@ export default function ChatPage() {
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const toggleAgentMode = () => {
+    setIsAgentMode((prev) => !prev)
   }
 
   return (
@@ -282,7 +301,13 @@ export default function ChatPage() {
       <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-2xl font-semibold">{isAgentMode ? "agent-modus" : "frivillig-db"}</h1>
+            <button
+              onClick={toggleAgentMode}
+              className="text-2xl font-semibold hover:opacity-70 transition-opacity active:scale-95"
+              title="Bytt mellom normal og agent-modus"
+            >
+              {isAgentMode ? "agent-modus" : "frivillig-db"}
+            </button>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
@@ -387,13 +412,17 @@ export default function ChatPage() {
 
                 return (
                   <div key={message.id} className="space-y-4">
-                    {message.role === "user" && messageAttachments.length > 0 && (
-                      <div className="flex justify-end">
+                    {messageAttachments.length > 0 && (
+                      <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div className="flex flex-wrap gap-2 max-w-[75%]">
                           {messageAttachments.map((att, idx) => (
                             <div
                               key={idx}
-                              className="flex items-center gap-2 px-3 py-2 bg-foreground text-background text-sm"
+                              className={`flex items-center gap-2 px-3 py-2 text-sm ${
+                                message.role === "user"
+                                  ? "bg-foreground text-background"
+                                  : "bg-muted text-foreground border border-border"
+                              }`}
                             >
                               <FileText className="w-4 h-4 shrink-0" />
                               <span className="truncate max-w-[200px]">{att.name}</span>
@@ -403,33 +432,39 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    {textContent && textContent.trim() && (
-                      <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div
-                          className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed ${
-                            message.role === "user" ? "bg-foreground text-background" : "bg-muted text-foreground"
-                          }`}
-                        >
-                          {message.role === "assistant" ? (
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              className="prose prose-sm dark:prose-invert max-w-none"
-                              components={{
-                                a: ({ node, ...props }) => (
-                                  <a {...props} className="font-bold italic underline hover:opacity-80" />
-                                ),
-                                p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
-                                strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
-                              }}
-                            >
-                              {textContent}
-                            </ReactMarkdown>
-                          ) : (
-                            <div className="whitespace-pre-wrap break-words">{textContent}</div>
-                          )}
+                    {textContent &&
+                      textContent.trim() &&
+                      !(
+                        message.role === "assistant" &&
+                        messageAttachments.length > 0 &&
+                        textContent.includes("**Profil:**")
+                      ) && (
+                        <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed ${
+                              message.role === "user" ? "bg-foreground text-background" : "bg-muted text-foreground"
+                            }`}
+                          >
+                            {message.role === "assistant" ? (
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                className="prose prose-sm dark:prose-invert max-w-none"
+                                components={{
+                                  a: ({ node, ...props }) => (
+                                    <a {...props} className="font-bold italic underline hover:opacity-80" />
+                                  ),
+                                  p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
+                                  strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
+                                }}
+                              >
+                                {textContent}
+                              </ReactMarkdown>
+                            ) : (
+                              <div className="whitespace-pre-wrap break-words">{textContent}</div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {message.role === "assistant" && organizations.length > 0 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -469,7 +504,8 @@ export default function ChatPage() {
                   <button
                     type="button"
                     onClick={() => removeAttachment(index)}
-                    className="shrink-0 hover:bg-muted-foreground/10 p-1 active:scale-95"
+                    disabled={isProcessing}
+                    className="shrink-0 hover:bg-muted-foreground/10 p-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -493,7 +529,7 @@ export default function ChatPage() {
               variant="outline"
               size="icon-lg"
               onClick={handleFileSelect}
-              disabled={status === "in_progress"}
+              disabled={isProcessing || status === "in_progress"}
               className="shrink-0 h-11 w-11 bg-transparent active:scale-95"
               title="Legg til vedlegg"
             >
@@ -505,7 +541,7 @@ export default function ChatPage() {
               ref={inputRef}
               name="message"
               placeholder="Skriv ei melding..."
-              disabled={status === "in_progress"}
+              disabled={isProcessing || status === "in_progress"}
               className="flex-1 h-11"
               autoComplete="off"
               onKeyDown={handleKeyDown}
@@ -513,7 +549,7 @@ export default function ChatPage() {
             />
             <Button
               type="submit"
-              disabled={status === "in_progress"}
+              disabled={isProcessing || status === "in_progress"}
               size="icon-lg"
               className="shrink-0 active:scale-95"
             >
