@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 
+export const dynamic = "force-dynamic"
+
 export default function ChatPage() {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
