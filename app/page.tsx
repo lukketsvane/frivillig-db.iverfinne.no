@@ -13,6 +13,7 @@ import type { OrganizationCardData } from "@/lib/organization-search"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 
 type Theme = "light" | "dark"
 
@@ -179,7 +180,26 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
+      <div className="fixed inset-0 -z-10 w-full h-full">
+        <Shader className="w-full h-full">
+          <SolidColor color="#000000" maskType="alpha" />
+          <Pixelate scale={15} maskType="alpha" opacity={0.84}>
+            <SineWave
+              color="#ffffff"
+              amplitude={0.87}
+              frequency={10.8}
+              speed={-0.5}
+              angle={6}
+              position={{ x: 0.5, y: 0.5 }}
+              thickness={0.22}
+              softness={0.44}
+              maskType="alpha"
+            />
+          </Pixelate>
+        </Shader>
+      </div>
+
       <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>

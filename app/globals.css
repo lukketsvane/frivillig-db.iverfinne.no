@@ -133,8 +133,9 @@
   }
 
   body {
-    /* Remove bg-background to let shader show through */
+    /* Removed bg-background to allow shader background to show through */
     @apply text-foreground;
+    background: transparent;
     /* Added safe area support for iOS notch/Dynamic Island */
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
