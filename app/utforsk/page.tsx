@@ -3,6 +3,9 @@ import { searchOrganizations, getUniqueKommuner } from "@/lib/organization-searc
 import { OrganizationGrid } from "@/components/organization-grid"
 import { SearchFilters } from "@/components/search-filters"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 export default async function UtforskPage({
   searchParams,
@@ -22,6 +25,15 @@ export default async function UtforskPage({
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Button variant="ghost" asChild>
+            <Link href="/">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Tilbake til chat
+            </Link>
+          </Button>
+        </div>
+
         <h1 className="text-4xl font-bold mb-8">Utforsk Organisasjonar</h1>
 
         <Suspense fallback={<Skeleton className="h-20 w-full" />}>
