@@ -330,17 +330,26 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-                {examplePrompts.map((prompt, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleExampleClick(prompt)}
-                    className="text-left p-4 min-h-[44px] border border-border hover:border-foreground/20 hover:bg-muted/50 active:scale-95 transition-all text-sm text-foreground leading-relaxed"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              {isAgentMode ? (
+                <div className="text-center max-w-md space-y-4">
+                  <div className="text-lg font-medium">Last opp vedlegg for personaliserte forslag</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Vi analyserer dokumenta dine og gir tilpassa organisasjonsanbefalingar basert på profilen din.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+                  {examplePrompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleExampleClick(prompt)}
+                      className="text-left p-4 min-h-[44px] border border-border hover:border-foreground/20 hover:bg-muted/50 active:scale-95 transition-all text-sm text-foreground leading-relaxed"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

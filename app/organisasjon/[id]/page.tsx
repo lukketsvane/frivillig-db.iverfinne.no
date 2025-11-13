@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getOrganizationById } from "@/lib/organization-search"
 import { toggleFavorite, isFavorite } from "@/lib/favorites"
 import { toggleBookmark, isBookmarked } from "@/lib/bookmarks"
 import { Card } from "@/components/ui/card"
@@ -22,16 +21,23 @@ export default function OrganizationPage() {
 
   useEffect(() => {
     async function loadOrganization() {
-      console.log("[v0] Loading organization with ID:", id)
-      const org = await getOrganizationById(id)
-      console.log("[v0] Organization found:", org ? "yes" : "no")
+      try {
+        const response = await fetch(`/api/organizations/${id}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch organization")
+        }
+        const org = await response.json()
 
-      if (org) {
-        setOrganization(org)
-        setIsFav(isFavorite(id))
-        setIsBook(isBookmarked(id))
+        if (org) {
+          setOrganization(org)
+          setIsFav(isFavorite(id))
+          setIsBook(isBookmarked(id))
+        }
+      } catch (error) {
+        console.error("[v0] Error loading organization:", error)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     loadOrganization()
   }, [id])
