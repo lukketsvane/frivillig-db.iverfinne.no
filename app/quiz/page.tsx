@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { QUIZ_QUESTIONS, VOLUNTEER_TYPE_RESULTS, type VolunteerType } from "@/lib/quiz-data"
+import { QUIZ_QUESTIONS, VOLUNTEER_TYPE_RESULTS, type VolunteerType, getSearchKeywordsForType } from "@/lib/quiz-data"
+import { OrganizationCard } from "@/components/organization-card"
+import type { OrganizationCardData } from "@/lib/organization-search"
 
 export default function QuizPage() {
   const [stage, setStage] = useState<"intro" | "question" | "result">("intro")
@@ -19,6 +21,70 @@ export default function QuizPage() {
     "Strategisk Bidragsyter": 0,
   })
   const [result, setResult] = useState<VolunteerType | null>(null)
+  const [recommendedOrgs, setRecommendedOrgs] = useState<OrganizationCardData[]>([])
+  const [loadingOrgs, setLoadingOrgs] = useState(false)
+
+  useEffect(() => {
+    if (result && stage === "result") {
+      fetchRecommendedOrganizations(result)
+    }
+  }, [result, stage])
+
+  const fetchRecommendedOrganizations = async (volunteerType: VolunteerType) => {
+    setLoadingOrgs(true)
+    try {
+      const keywords = getSearchKeywordsForType(volunteerType)
+
+      // Get location from localStorage if available
+      let location = null
+      let userLat = null
+      let userLon = null
+      let userPostnummer = null
+      let userKommune = null
+
+      try {
+        const savedLocation = localStorage.getItem("userLocation")
+        if (savedLocation) {
+          const locationData = JSON.parse(savedLocation)
+          location = locationData.poststed || locationData.kommune
+          userLat = locationData.latitude
+          userLon = locationData.longitude
+          userPostnummer = locationData.postnummer
+          userKommune = locationData.kommune
+        }
+      } catch (e) {
+        console.log("[v0] No saved location")
+      }
+
+      const params = new URLSearchParams()
+      if (keywords.length > 0) {
+        params.append("interests", keywords.join(","))
+      }
+      if (location) {
+        params.append("location", location)
+      }
+      if (userLat && userLon) {
+        params.append("userLatitude", userLat.toString())
+        params.append("userLongitude", userLon.toString())
+      }
+      if (userPostnummer) {
+        params.append("userPostnummer", userPostnummer)
+      }
+      if (userKommune) {
+        params.append("userKommune", userKommune)
+      }
+      params.append("limit", "6")
+
+      const response = await fetch(`/api/organizations?${params.toString()}`)
+      const data = await response.json()
+
+      setRecommendedOrgs(data.organizations || [])
+    } catch (error) {
+      console.error("[v0] Error fetching recommendations:", error)
+    } finally {
+      setLoadingOrgs(false)
+    }
+  }
 
   const handleStart = () => {
     setStage("question")
@@ -50,13 +116,13 @@ export default function QuizPage() {
   const progress = ((currentQuestion + 1) / QUIZ_QUESTIONS.length) * 100
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 bg-background">
-      <Card className="w-full max-w-2xl min-h-[600px] flex flex-col shadow-lg">
+    <div className="min-h-screen flex flex-col items-center justify-start p-3 gap-3 bg-background overflow-y-auto">
+      <Card className="w-full max-w-2xl flex flex-col shadow-lg">
         <div className="border-b px-6 py-4 flex items-center gap-4 shrink-0">
           <Button variant="ghost" size="icon" asChild className="active:scale-95">
             <Link href="/">
               <ArrowLeft className="w-5 h-5" />
-              <span className="sr-only">Tilbake til quiz</span>
+              <span className="sr-only">Tilbake</span>
             </Link>
           </Button>
           <h1 className="text-xl font-semibold">Tilbake til quiz</h1>
@@ -64,7 +130,7 @@ export default function QuizPage() {
 
         <div className="flex-1 p-6 flex flex-col">
           {stage === "intro" && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 py-12">
               <h2 className="text-4xl font-bold">Finn din frivilligtype!</h2>
               <p className="text-lg text-muted-foreground max-w-md leading-relaxed">
                 Er du usikker på hvilken type frivillig du er, eller hva som passer best for deg? Ta denne quizen for å
@@ -77,7 +143,7 @@ export default function QuizPage() {
           )}
 
           {stage === "question" && (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col py-6">
               <div className="mb-8">
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
@@ -106,8 +172,8 @@ export default function QuizPage() {
           )}
 
           {stage === "result" && result && (
-            <div className="flex-1 flex flex-col items-center justify-between py-8">
-              <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 max-w-lg">
+            <div className="flex flex-col py-6">
+              <div className="flex flex-col items-center text-center gap-6 mb-8">
                 <h2 className="text-3xl font-bold leading-tight">
                   Din frivilligtype ir:
                   <br />
@@ -116,11 +182,11 @@ export default function QuizPage() {
 
                 <div className="text-6xl my-4">{VOLUNTEER_TYPE_RESULTS[result].icon}</div>
 
-                <p className="text-base text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed max-w-lg">
                   {VOLUNTEER_TYPE_RESULTS[result].description}
                 </p>
 
-                <div className="w-full mt-4">
+                <div className="w-full max-w-lg mt-4">
                   <h3 className="text-lg font-semibold mb-3 text-left">Anbefalte områder:</h3>
                   <div className="space-y-2">
                     {VOLUNTEER_TYPE_RESULTS[result].recommended_areas.map((area, index) => (
@@ -132,8 +198,32 @@ export default function QuizPage() {
                 </div>
               </div>
 
+              <div className="w-full mt-8">
+                <h3 className="text-2xl font-bold mb-4">Anbefalte organisasjonar:</h3>
+
+                {loadingOrgs && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+
+                {!loadingOrgs && recommendedOrgs.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {recommendedOrgs.map((org) => (
+                      <OrganizationCard key={org.id} organization={org} />
+                    ))}
+                  </div>
+                )}
+
+                {!loadingOrgs && recommendedOrgs.length === 0 && (
+                  <p className="text-muted-foreground text-center py-8">
+                    Fann ingen organisasjonar for denne typen. Prøv å dele plassering eller utforsk alle organisasjonar.
+                  </p>
+                )}
+              </div>
+
               <Button asChild size="lg" className="w-full mt-6 min-h-[44px] text-lg active:scale-95">
-                <Link href="/utforsk">Utforsk organisasjons</Link>
+                <Link href="/utforsk">Utforsk fleire organisasjonar</Link>
               </Button>
             </div>
           )}

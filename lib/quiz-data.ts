@@ -196,3 +196,65 @@ export const VOLUNTEER_TYPE_RESULTS: Record<VolunteerType, VolunteerTypeResult> 
     icon: "📊",
   },
 }
+
+export function getSearchKeywordsForType(type: VolunteerType): string[] {
+  const keywordMap: Record<VolunteerType, string[]> = {
+    Praktiker: [
+      "miljø",
+      "naturvern",
+      "byutvikling",
+      "nærmiljø",
+      "humanitært",
+      "arrangement",
+      "dugnad",
+      "praktisk",
+      "vedlikehold",
+    ],
+    "Sosial Hjelper": [
+      "eldreomsorg",
+      "barn",
+      "ungdom",
+      "besøksvenn",
+      "mentor",
+      "integrering",
+      "omsorg",
+      "sosial",
+      "hjelp",
+    ],
+    Ekspert: [
+      "rådgivning",
+      "veiledning",
+      "IT",
+      "teknologi",
+      "økonomi",
+      "administrasjon",
+      "markedsføring",
+      "kommunikasjon",
+      "kompetanse",
+    ],
+    Samfunnsbygger: [
+      "politisk",
+      "påvirkning",
+      "miljø",
+      "klima",
+      "likestilling",
+      "menneskerettigheter",
+      "kultur",
+      "idrett",
+      "samfunn",
+    ],
+    Nettverker: ["arrangement", "event", "klubb", "forening", "fadder", "lokalmiljø", "sosial", "nettverk", "samling"],
+    "Strategisk Bidragsyter": [
+      "styre",
+      "prosjektledelse",
+      "rådgiver",
+      "fundraising",
+      "økonomi",
+      "strategi",
+      "planlegging",
+      "organisering",
+    ],
+  }
+
+  return keywordMap[type] || []
+}
