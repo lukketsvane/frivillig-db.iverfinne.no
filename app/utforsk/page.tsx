@@ -8,6 +8,7 @@ import Link from "next/link"
 import { OrganizationCard } from "@/components/organization-card"
 import { getFavorites, type FavoriteOrganization } from "@/lib/favorites"
 import { getBookmarks, type BookmarkedOrganization } from "@/lib/bookmarks"
+import { buildUserProfile, generateRecommendationParams } from "@/lib/recommendations"
 
 interface Organization {
   id: string
@@ -53,11 +54,15 @@ export default function UtforskPage() {
   }, [activeTab])
 
   const fetchRecommendedOrganizations = async () => {
-    const storedLocation = localStorage.getItem("userLocation")
-    const quizResult = localStorage.getItem("quizResult")
+    const userProfile = buildUserProfile()
+    console.log("[v0] User profile:", userProfile)
 
+    const recommendationParams = generateRecommendationParams(userProfile)
+    console.log("[v0] Recommendation params:", recommendationParams)
+
+    // Get stored location for GPS sorting
+    const storedLocation = localStorage.getItem("userLocation")
     let location = null
-    let interests = []
 
     if (storedLocation) {
       try {
@@ -67,22 +72,19 @@ export default function UtforskPage() {
       }
     }
 
-    if (quizResult) {
-      try {
-        const result = JSON.parse(quizResult)
-        interests = result.keywords || []
-      } catch (e) {
-        console.error("[v0] Error parsing quiz result:", e)
-      }
+    // Build search parameters
+    const params = new URLSearchParams()
+
+    if (recommendationParams.keywords.length > 0) {
+      params.append("sok", recommendationParams.keywords.join(" "))
     }
 
-    const params = new URLSearchParams()
-    if (interests.length > 0) {
-      params.append("sok", interests.join(" "))
+    if (location?.fylke) {
+      params.append("stad", location.fylke)
+    } else if (recommendationParams.location) {
+      params.append("stad", recommendationParams.location)
     }
-    if (location?.kommune || location?.fylke) {
-      params.append("stad", location.kommune || location.fylke)
-    }
+
     if (location?.latitude && location?.longitude) {
       params.append("userLatitude", location.latitude.toString())
       params.append("userLongitude", location.longitude.toString())
@@ -134,11 +136,10 @@ export default function UtforskPage() {
     if (storedLocation) {
       try {
         const location = JSON.parse(storedLocation)
-        if (location.kommune || location.fylke) {
-          const locationStr = location.kommune || location.fylke
-          setLocationQuery(locationStr)
-          // Auto-fetch organizations for this location
-          fetchOrganizations(undefined, locationStr, location)
+        if (location.fylke) {
+          setLocationQuery(location.fylke)
+          // Auto-fetch organizations for this fylke
+          fetchOrganizations(undefined, location.fylke, location)
         }
       } catch (error) {
         console.error("[v0] Error parsing stored location:", error)

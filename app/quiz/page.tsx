@@ -9,6 +9,7 @@ import { QUIZ_QUESTIONS, VOLUNTEER_TYPE_RESULTS, type VolunteerType, getSearchKe
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
+import { saveQuizResult } from "@/lib/recommendations"
 
 export default function QuizPage() {
   const [stage, setStage] = useState<"intro" | "question" | "result">("intro")
@@ -110,6 +111,7 @@ export default function QuizPage() {
       const maxScore = Math.max(...Object.values(newScores))
       const topType = Object.entries(newScores).find(([_, score]) => score === maxScore)?.[0] as VolunteerType
       setResult(topType)
+      saveQuizResult(topType)
       setStage("result")
     }
   }
@@ -195,7 +197,7 @@ export default function QuizPage() {
             <div className="flex flex-col py-6">
               <div className="flex flex-col items-center text-center gap-6 mb-8">
                 <h2 className="text-3xl font-bold leading-tight">
-                  Din frivilligtype ir:
+                  Din frivilligtype er:
                   <br />
                   {VOLUNTEER_TYPE_RESULTS[result].title}!
                 </h2>
