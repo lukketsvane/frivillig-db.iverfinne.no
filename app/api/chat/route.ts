@@ -28,6 +28,8 @@ export async function POST(req: Request) {
   // Search for organizations
   let organizationsContext = ""
   let foundOrganizations: any[] = []
+  let organizationList = "" // Legg til liste med gyldige organisasjonar
+
   try {
     const organizations = await searchOrganizations({
       location,
@@ -41,6 +43,13 @@ export async function POST(req: Request) {
     console.log("[v0] Found organizations:", foundOrganizations.length)
 
     if (organizations.length > 0) {
+      organizationList = "\n\n=== GYLDIGE ORGANISASJONAR (KUN DESSE FINST I DATABASEN) ===\n"
+      organizations.forEach((org, index) => {
+        organizationList += `${index + 1}. "${org.navn}" (ID: ${org.id})\n`
+        organizationList += `   URL: https://frivillig-db.iverfinne.no/organisasjon/${org.id}\n`
+      })
+      organizationList += "=== SLUTT PÅ LISTE ===\n\n"
+
       organizationsContext = "\n\nRelevante frivilligorganisasjonar:\n"
       organizations.forEach((org) => {
         organizationsContext += formatOrganizationForChat(org)
@@ -50,27 +59,30 @@ export async function POST(req: Request) {
     console.error("[v0] Error fetching organizations:", error)
   }
 
-  // Build enhanced system prompt
   const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg. 
 
 Du kommuniserer på nynorsk og gir direkte, konkrete svar.
 
 ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
 
+${organizationList}
+
 ${organizationsContext ? `${organizationsContext}` : ""}
 
-Oppgåva di:
-1. Analyser brukarens behov basert på alder, interesser og stad
-2. Presenter relevante organisasjonar frå databasen med hyperlenkjer
-3. Gje konkrete forslag til kva organisasjonar som passar best
-4. Ver støttande og oppmuntrande
+🚨 KRITISKE REGLAR - BRYT ALDRI DESSE:
 
-VIKTIG: Når du nemner ein organisasjon, bruk alltid markdown-lenkjer slik:
-[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ORGANISASJONS_ID)
+1. Du KAN KUN nemne organisasjonar som er lista ovanfor i "GYLDIGE ORGANISASJONAR"
+2. ALDRI finn på organisasjonsnamn eller ID-ar som ikkje er i lista
+3. Når du nemner ein organisasjon, bruk markdown-lenkje med ID frå lista: [Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ID)
+4. Om du ikkje finn relevante organisasjonar i lista, sei det ærleg: "Eg fann ingen perfekt match, men her er organisasjonar i området..."
+5. ALDRI kopier/lim inn ID-ar feil - sjekk nøye at ID-en matcher organisasjonsnamnet
 
-Eksempel: [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123) er perfekt for deg!
+EKSEMPEL PÅ RIKTIG SVAR:
+"Eg fann desse organisasjonane for deg:
+- [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123-xyz) er perfekt for turinteresserte
+- [Oslo Turlag](https://frivillig-db.iverfinne.no/organisasjon/def-456-uvw) har turar kvar helg"
 
-Svar kort og direkte (maksimum 3-4 setningar).`
+Ver kort og direkte (maksimum 3-4 setningar).`
 
   const result = streamText({
     model: "anthropic/claude-sonnet-4.5",
