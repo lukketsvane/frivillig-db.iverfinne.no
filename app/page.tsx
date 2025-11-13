@@ -219,13 +219,6 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
-              <div className="text-center space-y-3 max-w-2xl">
-                <h2 className="text-xl text-foreground">Finn frivilligorganisasjonar som passar for deg!</h2>
-                <p className="text-base text-muted-foreground leading-relaxed">
-                  Ver spesifikk om alder, interesser og stad.
-                </p>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
                 {examplePrompts.map((prompt, index) => (
                   <button
