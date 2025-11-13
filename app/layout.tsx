@@ -8,14 +8,14 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Frivilligorganisasjon-utforskar",
-  description: "Finn den rette frivilligorganisasjonen for deg",
+  title: "frivillig-db",
+  description: "frivillig-db",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Frivillig-DB",
+    title: "frivillig-db",
   },
   icons: {
     icon: "/icon-192.jpg",

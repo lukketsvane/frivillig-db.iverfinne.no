@@ -159,8 +159,7 @@ export default function ChatPage() {
       <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-2xl font-semibold">Frivilligorganisasjon-utforskar</h1>
-            <p className="text-sm text-muted-foreground mt-1">Finn den rette frivilligorganisasjonen for deg</p>
+            <h1 className="text-2xl font-semibold">frivillig-db</h1>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
