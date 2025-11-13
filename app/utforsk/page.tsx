@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, MapPin, ArrowLeft, Star, Sparkles, Bookmark } from "lucide-react"
+import { Search, MapPin, ArrowLeft, Star, Sparkles, Bookmark, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { OrganizationCard } from "@/components/organization-card"
 import { getFavorites, type FavoriteOrganization } from "@/lib/favorites"
@@ -31,6 +31,7 @@ export default function UtforskPage() {
   const [topResults, setTopResults] = useState<Organization[]>([])
   const [allResults, setAllResults] = useState<Organization[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const [favorites, setFavorites] = useState<FavoriteOrganization[]>([])
   const [bookmarks, setBookmarks] = useState<BookmarkedOrganization[]>([])
   const [recommendedOrgs, setRecommendedOrgs] = useState<Organization[]>([])
@@ -60,7 +61,6 @@ export default function UtforskPage() {
     const recommendationParams = generateRecommendationParams(userProfile)
     console.log("[v0] Recommendation params:", recommendationParams)
 
-    // Get stored location for GPS sorting
     const storedLocation = localStorage.getItem("userLocation")
     let location = null
 
@@ -72,7 +72,6 @@ export default function UtforskPage() {
       }
     }
 
-    // Build search parameters
     const params = new URLSearchParams()
 
     if (recommendationParams.keywords.length > 0) {
@@ -105,10 +104,12 @@ export default function UtforskPage() {
       setHasSearched(false)
       setTopResults([])
       setAllResults([])
+      setIsSearching(false)
       return
     }
 
     setHasSearched(true)
+    setIsSearching(true)
 
     const params = new URLSearchParams()
     if (sok) params.append("sok", sok)
@@ -128,6 +129,8 @@ export default function UtforskPage() {
       console.error("[v0] Error fetching organizations:", error)
       setTopResults([])
       setAllResults([])
+    } finally {
+      setIsSearching(false)
     }
   }, [])
 
@@ -138,7 +141,6 @@ export default function UtforskPage() {
         const location = JSON.parse(storedLocation)
         if (location.fylke) {
           setLocationQuery(location.fylke)
-          // Auto-fetch organizations for this fylke
           fetchOrganizations(undefined, location.fylke, location)
         }
       } catch (error) {
@@ -217,7 +219,11 @@ export default function UtforskPage() {
           <>
             <div className="mb-8">
               <div className="relative mb-3">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                {isSearching ? (
+                  <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground animate-spin" />
+                ) : (
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                )}
                 <Input
                   value={searchQuery}
                   onChange={(e) => {
@@ -240,7 +246,13 @@ export default function UtforskPage() {
               </div>
             </div>
 
-            {hasSearched && topResults.length > 0 && (
+            {isSearching && hasSearched && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+              </div>
+            )}
+
+            {!isSearching && hasSearched && topResults.length > 0 && (
               <div className="space-y-3 mb-6">
                 {topResults.map((org) => (
                   <OrganizationCard key={org.id} organization={org} showExtended />
@@ -248,7 +260,7 @@ export default function UtforskPage() {
               </div>
             )}
 
-            {hasSearched && allResults.length > topResults.length && (
+            {!isSearching && hasSearched && allResults.length > topResults.length && (
               <>
                 <div className="border-t border-border my-6" />
                 <div className="space-y-3">
