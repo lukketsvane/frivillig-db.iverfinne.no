@@ -1,34 +1,33 @@
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { MapPin, ExternalLink } from "lucide-react"
-import type { OrganizationCardData } from "@/lib/organization-search"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { MapPin } from "lucide-react"
+import type { Organization } from "@/lib/types"
 
 interface OrganizationCardProps {
-  organization: OrganizationCardData
+  organization: Organization
 }
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
   return (
-    <Link href={`/organisasjon/${organization.id}`} className="block transition-transform hover:scale-[1.02]">
-      <Card className="h-full hover:border-foreground/30 transition-colors cursor-pointer">
+    <Link href={`/organisasjon/${organization.id}`}>
+      <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
         <CardHeader>
-          <CardTitle className="text-lg leading-tight">{organization.navn}</CardTitle>
-          {(organization.poststed || organization.kommune) && (
-            <CardDescription className="flex items-center gap-1.5 mt-2">
-              <MapPin className="w-3.5 h-3.5" />
-              {organization.poststed || organization.kommune}
+          <CardTitle className="text-balance">{organization.navn}</CardTitle>
+          {organization.forretningsadresse_kommune && (
+            <CardDescription className="flex items-center gap-1">
+              <MapPin className="h-4 w-4" />
+              {organization.forretningsadresse_kommune}
             </CardDescription>
           )}
         </CardHeader>
         <CardContent className="space-y-3">
-          {organization.aktivitet && (
-            <p className="text-sm text-foreground/80 line-clamp-2">{organization.aktivitet}</p>
+          {organization.aktivitet && <Badge variant="secondary">{organization.aktivitet}</Badge>}
+          {organization.vedtektsfestet_formaal && (
+            <p className="text-sm text-muted-foreground line-clamp-3 text-pretty">
+              {organization.vedtektsfestet_formaal}
+            </p>
           )}
-          {organization.formaal && <p className="text-sm text-muted-foreground line-clamp-2">{organization.formaal}</p>}
-          <div className="flex items-center gap-1.5 text-sm text-foreground/60 pt-2">
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Sjå detaljar</span>
-          </div>
         </CardContent>
       </Card>
     </Link>
