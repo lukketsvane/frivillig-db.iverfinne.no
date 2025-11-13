@@ -1,46 +1,137 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { getOrganizationById } from "@/lib/organization-search"
+import { toggleFavorite, isFavorite } from "@/lib/favorites"
+import { toggleBookmark, isBookmarked } from "@/lib/bookmarks"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
+import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar, Star, Bookmark, Copy } from "lucide-react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { useParams } from "next/navigation"
 
-interface OrganizationPageProps {
-  params: Promise<{
-    id: string
-  }>
-}
+export default function OrganizationPage() {
+  const params = useParams()
+  const id = params.id as string
 
-export default async function OrganizationPage({ params }: OrganizationPageProps) {
-  const { id } = await params
+  const [organization, setOrganization] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [isFav, setIsFav] = useState(false)
+  const [isBook, setIsBook] = useState(false)
+  const [copied, setCopied] = useState(false)
 
-  console.log("[v0] Loading organization with ID:", id)
+  useEffect(() => {
+    async function loadOrganization() {
+      console.log("[v0] Loading organization with ID:", id)
+      const org = await getOrganizationById(id)
+      console.log("[v0] Organization found:", org ? "yes" : "no")
 
-  const organization = await getOrganizationById(id)
+      if (org) {
+        setOrganization(org)
+        setIsFav(isFavorite(id))
+        setIsBook(isBookmarked(id))
+      }
+      setLoading(false)
+    }
+    loadOrganization()
+  }, [id])
 
-  console.log("[v0] Organization found:", organization ? "yes" : "no")
+  const handleFavorite = () => {
+    if (!organization) return
+    const newState = toggleFavorite({
+      id: organization.id,
+      navn: organization.navn,
+      aktivitet: organization.aktivitet,
+      poststed: organization.forretningsadresse_poststed,
+      kommune: organization.forretningsadresse_kommune,
+      addedAt: Date.now(),
+    })
+    setIsFav(newState)
+  }
+
+  const handleBookmark = () => {
+    if (!organization) return
+    const newState = toggleBookmark({
+      id: organization.id,
+      navn: organization.navn,
+      aktivitet: organization.aktivitet,
+      poststed: organization.forretningsadresse_poststed,
+      kommune: organization.forretningsadresse_kommune,
+      addedAt: Date.now(),
+    })
+    setIsBook(newState)
+  }
+
+  const handleCopyUrl = () => {
+    const url = window.location.href
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
+        <p className="text-muted-foreground">Lastar...</p>
+      </div>
+    )
+  }
 
   if (!organization) {
-    notFound()
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
+        <p className="text-muted-foreground">Fann ikkje organisasjon</p>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header with back button */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
           <Link href="/">
             <Button variant="outline" size="icon-lg" className="active:scale-95 bg-transparent">
               <ArrowLeft className="w-5 h-5" />
               <span className="sr-only">Tilbake</span>
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">{organization.navn}</h1>
-            {organization.organisasjonsform_beskrivelse && (
-              <p className="text-sm text-muted-foreground mt-1">{organization.organisasjonsform_beskrivelse}</p>
-            )}
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon-lg"
+              className="active:scale-95 bg-transparent"
+              onClick={handleFavorite}
+            >
+              <Star className={`w-5 h-5 ${isFav ? "fill-yellow-500 text-yellow-500" : ""}`} />
+              <span className="sr-only">Favoritt</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon-lg"
+              className="active:scale-95 bg-transparent"
+              onClick={handleBookmark}
+            >
+              <Bookmark className={`w-5 h-5 ${isBook ? "fill-blue-500 text-blue-500" : ""}`} />
+              <span className="sr-only">Bokmerke</span>
+            </Button>
+
+            <Button variant="outline" size="icon-lg" className="active:scale-95 bg-transparent" onClick={handleCopyUrl}>
+              <Copy className={`w-5 h-5 ${copied ? "text-green-500" : ""}`} />
+              <span className="sr-only">Kopier URL</span>
+            </Button>
           </div>
+        </div>
+
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground">{organization.navn}</h1>
+          {organization.organisasjonsform_beskrivelse && (
+            <p className="text-sm text-muted-foreground mt-1">{organization.organisasjonsform_beskrivelse}</p>
+          )}
         </div>
 
         {/* Main information card */}

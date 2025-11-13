@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X } from "lucide-react"
+import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -16,6 +16,13 @@ import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 
 type Theme = "light" | "dark"
+
+interface MessageWithAttachments {
+  id: string
+  role: string
+  content: string
+  attachments?: { name: string; type: string }[]
+}
 
 const ALL_EXAMPLE_PROMPTS = [
   "54 år, erfaring innan leiing - vil bidra til lokalsamfunnet i Stavanger",
@@ -54,9 +61,11 @@ export default function ChatPage() {
 
   const [examplePrompts, setExamplePrompts] = useState<string[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
+  const [isAgentMode, setIsAgentMode] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     const shuffled = [...ALL_EXAMPLE_PROMPTS].sort(() => Math.random() - 0.5)
@@ -161,6 +170,8 @@ export default function ChatPage() {
 
     if (message.trim() || attachments.length > 0) {
       if (attachments.length > 0) {
+        setIsAgentMode(true)
+
         const uploadFormData = new FormData()
         attachments.forEach((file) => {
           uploadFormData.append("files", file)
@@ -169,6 +180,11 @@ export default function ChatPage() {
         if (userLocation) {
           uploadFormData.append("location", JSON.stringify(userLocation))
         }
+
+        const attachmentInfo = attachments.map((file) => ({
+          name: file.name,
+          type: file.type,
+        }))
 
         try {
           const response = await fetch("/api/analyze-profile", {
@@ -186,11 +202,16 @@ export default function ChatPage() {
           const combinedMessage = `${data.recommendation}\n\n**Profil:**\n${data.profile}`
           sendMessage({
             text: combinedMessage,
-            data: { organizations: data.organizations },
+            data: {
+              organizations: data.organizations,
+              attachments: attachmentInfo,
+            },
           })
 
           setAttachments([])
-          e.currentTarget.reset()
+          if (formRef.current) {
+            formRef.current.reset()
+          }
         } catch (error) {
           console.error("[v0] Error uploading attachments:", error)
           alert("Kunne ikkje laste opp vedlegg. Prøv igjen.")
@@ -198,7 +219,9 @@ export default function ChatPage() {
         }
       } else {
         sendMessage({ text: message })
-        e.currentTarget.reset()
+        if (formRef.current) {
+          formRef.current.reset()
+        }
       }
 
       inputRef.current?.focus()
@@ -259,7 +282,7 @@ export default function ChatPage() {
       <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-2xl font-semibold">frivillig-db</h1>
+            <h1 className="text-2xl font-semibold">{isAgentMode ? "agent-modus" : "frivillig-db"}</h1>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
@@ -333,19 +356,44 @@ export default function ChatPage() {
                   .join("")
 
                 let organizations: OrganizationCardData[] = []
+                let messageAttachments: { name: string; type: string }[] = []
                 try {
-                  if (message.data && typeof message.data === "object" && "organizations" in message.data) {
-                    const orgs = message.data.organizations
-                    if (Array.isArray(orgs)) {
-                      organizations = orgs
+                  if (message.data && typeof message.data === "object") {
+                    if ("organizations" in message.data) {
+                      const orgs = message.data.organizations
+                      if (Array.isArray(orgs)) {
+                        organizations = orgs
+                      }
+                    }
+                    if ("attachments" in message.data) {
+                      const atts = message.data.attachments
+                      if (Array.isArray(atts)) {
+                        messageAttachments = atts
+                      }
                     }
                   }
                 } catch (error) {
-                  console.error("[v0] Error parsing organizations:", error)
+                  console.error("[v0] Error parsing message data:", error)
                 }
 
                 return (
                   <div key={message.id} className="space-y-4">
+                    {message.role === "user" && messageAttachments.length > 0 && (
+                      <div className="flex justify-end">
+                        <div className="flex flex-wrap gap-2 max-w-[75%]">
+                          {messageAttachments.map((att, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 px-3 py-2 bg-foreground text-background text-sm"
+                            >
+                              <FileText className="w-4 h-4 shrink-0" />
+                              <span className="truncate max-w-[200px]">{att.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {textContent && textContent.trim() && (
                       <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div
@@ -407,6 +455,7 @@ export default function ChatPage() {
             <div className="flex flex-wrap gap-2 mb-3">
               {attachments.map((file, index) => (
                 <div key={index} className="flex items-center gap-2 px-3 py-2 bg-muted text-sm border border-border">
+                  <FileText className="w-4 h-4 shrink-0" />
                   <span className="truncate max-w-[200px]">{file.name}</span>
                   <button
                     type="button"
@@ -420,7 +469,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex gap-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3">
             <input
               ref={fileInputRef}
               type="file"
