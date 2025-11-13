@@ -70,13 +70,12 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
                   <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <p className="text-foreground">
-                      {organization.forretningsadresse_adresse &&
-                        organization.forretningsadresse_adresse.length > 0 && (
-                          <>
-                            {organization.forretningsadresse_adresse.join(", ")}
-                            <br />
-                          </>
-                        )}
+                      {organization.forretningsadresse_adresse && (
+                        <>
+                          {organization.forretningsadresse_adresse}
+                          <br />
+                        </>
+                      )}
                       {organization.forretningsadresse_postnummer && <>{organization.forretningsadresse_postnummer} </>}
                       {organization.forretningsadresse_poststed}
                     </p>
