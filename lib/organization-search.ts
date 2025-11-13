@@ -24,7 +24,6 @@ export interface Organization {
   antall_ansatte?: number
   stiftelsesdato?: string
   registreringsdato_frivillighetsregisteret?: string
-  fylke?: string
 }
 
 export interface SearchParams {
@@ -34,15 +33,9 @@ export interface SearchParams {
   limit?: number
   userPostnummer?: string
   userKommune?: string
-  userFylke?: string
 }
 
-function calculateLocationPriority(
-  org: Organization,
-  userPostnummer?: string,
-  userKommune?: string,
-  userFylke?: string,
-): number {
+function calculateLocationPriority(org: Organization, userPostnummer?: string, userKommune?: string): number {
   // Lågare tal = høgare prioritet
   if (userPostnummer && org.forretningsadresse_postnummer === userPostnummer) {
     return 1 // Same postnummer
@@ -50,10 +43,7 @@ function calculateLocationPriority(
   if (userKommune && org.forretningsadresse_kommune?.toLowerCase().includes(userKommune.toLowerCase())) {
     return 2 // Same kommune
   }
-  if (userFylke && org.fylke?.toLowerCase().includes(userFylke.toLowerCase())) {
-    return 3 // Same fylke
-  }
-  return 4 // Andre plassar
+  return 3 // Andre plassar
 }
 
 export async function searchOrganizations(params: SearchParams): Promise<Organization[]> {
@@ -72,7 +62,6 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
       forretningsadresse_poststed,
       forretningsadresse_kommune,
       forretningsadresse_postnummer,
-      fylke,
       hjemmeside,
       epost,
       telefon
@@ -84,23 +73,25 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
   // Filter by location if provided
   if (params.location) {
     query = query.or(
-      `forretningsadresse_poststed.ilike.%${params.location}%,forretningsadresse_kommune.ilike.%${params.location}%,fylke.ilike.%${params.location}%`,
+      `forretningsadresse_poststed.ilike.%${params.location}%,forretningsadresse_kommune.ilike.%${params.location}%`,
     )
   }
 
   const { data, error } = await query
 
   if (error) {
-    console.error("[v0] Error searching organizations:", error)
+    console.error("[v0] Error searching organizations:", error.message)
     return []
   }
 
+  console.log("[v0] Found organizations:", data?.length || 0)
+
   let organizations = data as Organization[]
 
-  if (params.userPostnummer || params.userKommune || params.userFylke) {
+  if (params.userPostnummer || params.userKommune) {
     organizations = organizations.sort((a, b) => {
-      const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune, params.userFylke)
-      const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune, params.userFylke)
+      const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune)
+      const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune)
       return priorityA - priorityB
     })
   }

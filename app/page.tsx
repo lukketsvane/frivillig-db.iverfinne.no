@@ -17,10 +17,10 @@ import remarkGfm from "remark-gfm"
 type Theme = "light" | "dark"
 
 const EXAMPLE_PROMPTS = [
-  "Eg er pensjonist i Oslo og vil møte andre. Kva finst?",
-  "Eg har barn på 7 år som elskar naturen. Finn turlag for born!",
-  "Vil verte frivillig i miljøorganisasjon i Hordaland",
-  "Ungdom 16 år - kulturaktivitetar i Trondheim?",
+  "54 år, erfaring innan leiing - vil bidra til lokalsamfunnet i Stavanger",
+  "Vil dele kompetanse innan IT med nye innvandrarar. Korleis starte?",
+  "Interessert i naturvern og vil lede lokale tiltak i Sogn og Fjordane",
+  "50 år, ynskjer å bli mentor for unge i karrierestart. Organisasjonar i Bergen?",
 ]
 
 export default function ChatPage() {
