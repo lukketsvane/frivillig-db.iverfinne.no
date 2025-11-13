@@ -46,6 +46,8 @@ export default function ChatPage() {
     kommune?: string
     fylke?: string
     postnummer?: string
+    latitude?: number
+    longitude?: number
   } | null>(null)
   const [locationPermission, setLocationPermission] = useState<"prompt" | "granted" | "denied">("prompt")
 
@@ -95,7 +97,6 @@ export default function ChatPage() {
       async (position) => {
         const { latitude, longitude } = position.coords
 
-        // Use reverse geocoding to get location details
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=no`,
@@ -107,6 +108,8 @@ export default function ChatPage() {
             kommune: data.address?.municipality || data.address?.city,
             fylke: data.address?.state,
             postnummer: data.address?.postcode,
+            latitude,
+            longitude,
           }
 
           setUserLocation(savedLocation)

@@ -33,6 +33,62 @@ export interface SearchParams {
   limit?: number
   userPostnummer?: string
   userKommune?: string
+  userLatitude?: number
+  userLongitude?: number
+}
+
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+const geocodeCache = new Map<string, { lat: number; lon: number } | null>()
+
+async function geocodeAddress(
+  address: string,
+  poststed: string,
+  postnummer: string,
+): Promise<{ lat: number; lon: number } | null> {
+  const cacheKey = `${postnummer}-${poststed}`
+
+  if (geocodeCache.has(cacheKey)) {
+    return geocodeCache.get(cacheKey)!
+  }
+
+  try {
+    const query = address ? `${address}, ${postnummer} ${poststed}, Norway` : `${postnummer} ${poststed}, Norway`
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=no`,
+      {
+        headers: {
+          "User-Agent": "frivillig-db/1.0",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data && data.length > 0) {
+      const coords = {
+        lat: Number.parseFloat(data[0].lat),
+        lon: Number.parseFloat(data[0].lon),
+      }
+      geocodeCache.set(cacheKey, coords)
+      return coords
+    }
+  } catch (error) {
+    console.error("[v0] Geocoding error:", error)
+  }
+
+  geocodeCache.set(cacheKey, null)
+  return null
 }
 
 function calculateLocationPriority(org: Organization, userPostnummer?: string, userKommune?: string): number {
@@ -64,6 +120,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
       forretningsadresse_poststed,
       forretningsadresse_kommune,
       forretningsadresse_postnummer,
+      forretningsadresse_adresse,
       hjemmeside,
       epost,
       telefon
@@ -103,7 +160,33 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
     console.log("[v0] Organizations after interest filtering:", organizations.length)
   }
 
-  if (params.userPostnummer || params.userKommune) {
+  if (params.userLatitude && params.userLongitude) {
+    console.log("[v0] Sorting by GPS proximity...")
+
+    // Geocode organizations and calculate distances
+    const orgsWithDistance = await Promise.all(
+      organizations.map(async (org) => {
+        const coords = await geocodeAddress(
+          org.forretningsadresse_adresse || "",
+          org.forretningsadresse_poststed,
+          org.forretningsadresse_postnummer,
+        )
+
+        const distance = coords
+          ? calculateDistance(params.userLatitude!, params.userLongitude!, coords.lat, coords.lon)
+          : Number.POSITIVE_INFINITY
+
+        return { org, distance }
+      }),
+    )
+
+    // Sort by distance
+    orgsWithDistance.sort((a, b) => a.distance - b.distance)
+    organizations = orgsWithDistance.map((item) => item.org)
+
+    console.log("[v0] Sorted by GPS distance, closest org:", organizations[0]?.navn)
+  } else if (params.userPostnummer || params.userKommune) {
+    // Fallback to postal code matching if no GPS coordinates
     organizations = organizations.sort((a, b) => {
       const priorityA = calculateLocationPriority(a, params.userPostnummer, params.userKommune)
       const priorityB = calculateLocationPriority(b, params.userPostnummer, params.userKommune)
