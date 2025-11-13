@@ -30,8 +30,8 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
         {/* Header with back button */}
         <div className="flex items-center gap-4">
           <Link href="/">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="w-4 h-4" />
+            <Button variant="outline" size="icon-lg" className="active:scale-95 bg-transparent">
+              <ArrowLeft className="w-5 h-5" />
               <span className="sr-only">Tilbake</span>
             </Button>
           </Link>
@@ -170,19 +170,15 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
         {/* Action buttons */}
         <div className="flex gap-3">
           {organization.hjemmeside && (
-            <Button asChild className="flex-1">
+            <Button asChild className="flex-1 h-11 active:scale-95">
               <a href={organization.hjemmeside} target="_blank" rel="noopener noreferrer">
-                <Globe className="w-4 h-4 mr-2" />
-                Besøk nettside
+                Nettside
               </a>
             </Button>
           )}
           {organization.epost && (
-            <Button asChild variant="outline" className="flex-1 bg-transparent">
-              <a href={`mailto:${organization.epost}`}>
-                <Mail className="w-4 h-4 mr-2" />
-                Send e-post
-              </a>
+            <Button asChild variant="outline" className="flex-1 h-11 bg-transparent active:scale-95">
+              <a href={`mailto:${organization.epost}`}>E-post</a>
             </Button>
           )}
         </div>
