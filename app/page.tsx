@@ -228,12 +228,7 @@ export default function ChatPage() {
                               className="prose prose-sm dark:prose-invert max-w-none"
                               components={{
                                 a: ({ node, ...props }) => (
-                                  <a
-                                    {...props}
-                                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  />
+                                  <a {...props} className="font-bold italic underline hover:opacity-80" />
                                 ),
                                 p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
                                 strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
