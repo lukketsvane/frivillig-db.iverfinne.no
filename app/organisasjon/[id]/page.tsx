@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import { getOrganizationById } from "@/lib/organization-search"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Mail, Phone, Globe, Calendar, Users } from "lucide-react"
+import { MapPin, Mail, Phone, Globe, Calendar, Users, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -21,8 +21,11 @@ export default async function OrganizationPage({
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <Button variant="outline" asChild className="mb-6 bg-transparent">
-          <Link href="/utforsk">← Tilbake til søk</Link>
+        <Button variant="ghost" asChild className="mb-6">
+          <Link href="/utforsk">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Tilbake til søk
+          </Link>
         </Button>
 
         <div className="max-w-4xl">
