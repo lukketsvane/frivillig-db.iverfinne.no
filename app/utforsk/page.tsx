@@ -71,7 +71,6 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
           </Link>
 
           <h1 className="text-4xl font-bold mb-2">Utforsk organisasjonar</h1>
-          {orgs.length > 0 && <p className="text-lg text-muted-foreground">Viser {orgs.length} resultat</p>}
         </div>
 
         <Card className="mb-8">
