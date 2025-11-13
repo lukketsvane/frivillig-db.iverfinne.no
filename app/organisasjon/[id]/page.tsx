@@ -11,6 +11,15 @@ import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar, Star, Bookmark, Copy }
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 
+function ensureHttps(url: string): string {
+  if (!url) return url
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url
+  }
+  return `https://${url}`
+}
+// </CHANGE>
+
 export default function OrganizationPage() {
   const params = useParams()
   const router = useRouter()
@@ -238,7 +247,7 @@ export default function OrganizationPage() {
                 <div className="flex items-center gap-3">
                   <Globe className="w-5 h-5 text-muted-foreground shrink-0" />
                   <a
-                    href={organization.hjemmeside}
+                    href={ensureHttps(organization.hjemmeside)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-foreground hover:underline"
@@ -291,7 +300,7 @@ export default function OrganizationPage() {
         <div className="flex gap-3">
           {organization.hjemmeside && (
             <Button asChild className="flex-1 h-11 active:scale-95">
-              <a href={organization.hjemmeside} target="_blank" rel="noopener noreferrer">
+              <a href={ensureHttps(organization.hjemmeside)} target="_blank" rel="noopener noreferrer">
                 Nettside
               </a>
             </Button>
