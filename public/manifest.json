@@ -1,7 +1,7 @@
 {
-  "name": "Frivilligorganisasjon-utforskar",
-  "short_name": "Frivillig-DB",
-  "description": "Finn den rette frivilligorganisasjonen for deg",
+  "name": "frivillig-db",
+  "short_name": "frivillig-db",
+  "description": "frivillig-db",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
