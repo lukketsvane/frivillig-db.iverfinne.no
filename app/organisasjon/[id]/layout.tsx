@@ -2,11 +2,11 @@ import type React from "react"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Chat - Frivillige Organisasjoner",
-  description: "Chat med AI om frivillige organisasjoner i Norge",
+  title: "Organisasjon | Frivilligorganisasjon-utforskar",
+  description: "Informasjon om frivilligorganisasjon",
 }
 
-export default function ChatLayout({
+export default function OrganizationLayout({
   children,
 }: {
   children: React.ReactNode

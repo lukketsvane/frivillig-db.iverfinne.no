@@ -1,18 +1,34 @@
 import type React from "react"
-import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
+import type { Metadata, Viewport } from "next"
+import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
+const _geist = Geist({ subsets: ["latin"] })
+const _geistMono = Geist_Mono({ subsets: ["latin"] })
+
 export const metadata: Metadata = {
-  title: "Frivillig-utforskar",
-  description: "Finn frivilligorganisasjonar som passar for deg",
+  title: "Frivilligorganisasjon-utforskar",
+  description: "Finn den rette frivilligorganisasjonen for deg",
   generator: "v0.app",
-  icons: {
-    icon: "/icon.svg",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Frivillig-DB",
   },
+  icons: {
+    icon: "/icon-192.jpg",
+    apple: "/icon-192.jpg",
+  },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 0.75,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 }
 
 export default function RootLayout({
@@ -21,20 +37,24 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="no" suppressHydrationWarning>
+    <html lang="nn">
       <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const theme = localStorage.getItem('theme');
+                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (theme === 'dark' || (!theme && systemPrefersDark)) {
+                  document.documentElement.classList.add('dark');
+                }
+              })();
+            `,
+          }}
+        />
       </head>
-      <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-        </ThemeProvider>
+      <body className={`font-sans antialiased ${_geist.className}`}>
+        {children}
         <Analytics />
       </body>
     </html>

@@ -1,71 +1,129 @@
-import { consumeStream, convertToModelMessages, streamText, type UIMessage, tool } from "ai"
-import { z } from "zod"
-import { createClient } from "@/lib/supabase/server"
+import { streamText, convertToCoreMessages } from "ai"
+import { searchOrganizations, formatOrganizationForChat, createOrganizationCards } from "@/lib/organization-search"
+import { identifyLifeStage, generateStageGuidance } from "@/lib/erikson-theory"
 
 export const maxDuration = 30
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json()
+  const { messages, userLocation }: { messages: any[]; userLocation?: any } = await req.json()
 
-  const supabase = await createClient()
+  const coreMessages = convertToCoreMessages(messages)
 
-  const prompt = convertToModelMessages(messages)
+  const latestUserMessage = messages.filter((m) => m.role === "user").pop()
+  const userMessageText = latestUserMessage?.content || ""
+
+  console.log("[v0] User message:", userMessageText)
+  console.log("[v0] User location:", userLocation)
+
+  // Identify life stage based on Erikson's theory
+  const lifeStage = identifyLifeStage(userMessageText)
+  const stageGuidance = lifeStage ? generateStageGuidance(lifeStage) : ""
+
+  // Extract location from message
+  const locationMatch = userMessageText.match(/i\s+([A-ZÆØÅ][a-zæøå]+)/i)
+  const location = locationMatch ? locationMatch[1] : undefined
+
+  console.log("[v0] Detected location:", location)
+
+  // Search for organizations
+  let organizationsContext = ""
+  let foundOrganizations: any[] = []
+  try {
+    const organizations = await searchOrganizations({
+      location,
+      limit: 500,
+      userPostnummer: userLocation?.postnummer,
+      userKommune: userLocation?.kommune,
+      userFylke: userLocation?.fylke,
+    })
+
+    foundOrganizations = organizations
+    console.log("[v0] Found organizations:", foundOrganizations.length)
+
+    if (organizations.length > 0) {
+      organizationsContext = "\n\nRelevante frivilligorganisasjonar:\n"
+      organizations.forEach((org) => {
+        organizationsContext += formatOrganizationForChat(org)
+      })
+    }
+  } catch (error) {
+    console.error("[v0] Error fetching organizations:", error)
+  }
+
+  // Build enhanced system prompt
+  const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg. 
+
+Du kommuniserer på nynorsk og gir direkte, konkrete svar.
+
+${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
+
+${organizationsContext ? `${organizationsContext}` : ""}
+
+Oppgåva di:
+1. Analyser brukarens behov basert på alder, interesser og stad
+2. Presenter relevante organisasjonar frå databasen med hyperlenkjer
+3. Gje konkrete forslag til kva organisasjonar som passar best
+4. Ver støttande og oppmuntrande
+
+VIKTIG: Når du nemner ein organisasjon, bruk alltid markdown-lenkjer slik:
+[Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ORGANISASJONS_ID)
+
+Eksempel: [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123) er perfekt for deg!
+
+Svar kort og direkte (maksimum 3-4 setningar).`
 
   const result = streamText({
-    model: "openai/gpt-4o-mini",
-    system: `Du er en hjelpsom assistent som kan finne informasjon om frivillige organisasjoner i Norge. 
-    Du snakker norsk og hjelper brukere med å finne organisasjoner basert på deres interesser, lokasjon eller aktiviteter.`,
-    prompt,
+    model: "anthropic/claude-sonnet-4.5",
+    messages: coreMessages,
     abortSignal: req.signal,
-    tools: {
-      searchOrganizations: tool({
-        description: "Søk etter frivillige organisasjoner basert på navn, aktivitet eller lokasjon",
-        inputSchema: z.object({
-          searchTerm: z.string().describe("Søkeord for å finne organisasjoner"),
-          limit: z.number().optional().describe("Antall resultater (standard 10)"),
-        }),
-        execute: async ({ searchTerm, limit = 10 }) => {
-          const { data, error } = await supabase
-            .from("organisasjonar")
-            .select("id, navn, aktivitet, forretningsadresse_poststed, forretningsadresse_kommune, hjemmeside")
-            .or(
-              `navn.ilike.%${searchTerm}%,aktivitet.ilike.%${searchTerm}%,forretningsadresse_poststed.ilike.%${searchTerm}%`,
-            )
-            .eq("registrert_i_frivillighetsregisteret", true)
-            .not("navn", "is", null)
-            .limit(limit)
+    system: systemPrompt,
+    apiKey: "vck_5GJE6iWRKwefpMlSNR8ObURjaSdP3iYB88aJZXNu5V4EN5jpqL4aVT1f",
+  })
 
-          if (error) {
-            return { error: "Kunne ikke hente organisasjoner" }
-          }
-
-          return { organizations: data || [] }
-        },
-      }),
-      getOrganizationDetails: tool({
-        description: "Hent detaljert informasjon om en spesifikk organisasjon",
-        inputSchema: z.object({
-          organizationId: z.number().describe("ID-en til organisasjonen"),
-        }),
-        execute: async ({ organizationId }) => {
-          const { data, error } = await supabase.from("organisasjonar").select("*").eq("id", organizationId).single()
-
-          if (error) {
-            return { error: "Kunne ikke hente organisasjonsdetaljer" }
-          }
-
-          return { organization: data }
-        },
-      }),
+  const stream = result.toUIMessageStreamResponse({
+    getErrorMessage: (error) => {
+      console.error("[v0] Stream error:", error)
+      return "Beklagar, det oppstod ein feil. Prøv igjen."
     },
   })
 
-  return result.toUIMessageStreamResponse({
-    onFinish: async ({ isAborted }) => {
-      if (isAborted) {
-        console.log("Chat avbrutt")
-      }
-    },
-    consumeSseStream: consumeStream,
-  })
+  if (foundOrganizations.length > 0) {
+    const orgCards = createOrganizationCards(foundOrganizations)
+    console.log("[v0] Sending organization cards:", orgCards.length)
+
+    // Return response with organizations embedded in data
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          const reader = stream.body?.getReader()
+          if (!reader) {
+            controller.close()
+            return
+          }
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                // Send organizations as data at the end
+                const dataLine = `2:[${JSON.stringify({ organizations: orgCards })}]\n`
+                controller.enqueue(new TextEncoder().encode(dataLine))
+                controller.close()
+                break
+              }
+              controller.enqueue(value)
+            }
+          } catch (error) {
+            console.error("[v0] Stream processing error:", error)
+            controller.error(error)
+          }
+        },
+      }),
+      {
+        headers: stream.headers,
+      },
+    )
+  }
+
+  return stream
 }
