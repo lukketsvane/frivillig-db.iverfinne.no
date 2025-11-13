@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, Moon, Sun, MapPin } from "lucide-react"
+import { ArrowUp, Moon, Sun, MapPin, HelpCircle } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -188,6 +188,18 @@ export default function ChatPage() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              asChild
+              className="h-11 w-11 bg-transparent active:scale-95"
+              title="Ta quiz"
+            >
+              <Link href="/quiz">
+                <HelpCircle className="w-5 h-5" />
+                <span className="sr-only">Ta quiz</span>
+              </Link>
             </Button>
             <Button
               variant="outline"
