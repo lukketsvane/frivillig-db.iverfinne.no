@@ -3,11 +3,68 @@ import { createClient } from "@/lib/supabase/server"
 import { generateObject } from "ai"
 import { z } from "zod"
 
+const geocodeCache = new Map<string, { lat: number; lon: number } | null>()
+
+async function geocodeAddress(
+  address: string,
+  poststed: string,
+  postnummer: string,
+): Promise<{ lat: number; lon: number } | null> {
+  const cacheKey = `${postnummer}-${poststed}`
+
+  if (geocodeCache.has(cacheKey)) {
+    return geocodeCache.get(cacheKey)!
+  }
+
+  try {
+    const query = address ? `${address}, ${postnummer} ${poststed}, Norway` : `${postnummer} ${poststed}, Norway`
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=no`,
+      {
+        headers: {
+          "User-Agent": "frivillig-db/1.0",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data && data.length > 0) {
+      const coords = {
+        lat: Number.parseFloat(data[0].lat),
+        lon: Number.parseFloat(data[0].lon),
+      }
+      geocodeCache.set(cacheKey, coords)
+      return coords
+    }
+  } catch (error) {
+    console.error("[v0] Geocoding error:", error)
+  }
+
+  geocodeCache.set(cacheKey, null)
+  return null
+}
+
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const sok = searchParams.get("sok")
   const stad = searchParams.get("stad")
   const limit = searchParams.get("limit") ? Number.parseInt(searchParams.get("limit")!) : 50
+
+  const userLatitude = searchParams.get("userLatitude") ? Number.parseFloat(searchParams.get("userLatitude")!) : null
+  const userLongitude = searchParams.get("userLongitude") ? Number.parseFloat(searchParams.get("userLongitude")!) : null
 
   const supabase = await createClient()
 
@@ -21,6 +78,8 @@ export async function GET(request: Request) {
       vedtektsfestet_formaal,
       forretningsadresse_poststed,
       forretningsadresse_kommune,
+      forretningsadresse_postnummer,
+      forretningsadresse_adresse,
       naeringskode1_beskrivelse,
       naeringskode2_beskrivelse,
       organisasjonsform_beskrivelse,
@@ -101,7 +160,7 @@ Døme: "Eg vil jobbe med barn i Bergen" → keywords: ["barn"], categories: ["ba
     return NextResponse.json({ error: error.message, organizations: [], topResults: [] }, { status: 500 })
   }
 
-  const scoredOrgs = (organizations || []).map((org: any) => {
+  let scoredOrgs = (organizations || []).map((org: any) => {
     let score = 0
 
     if (sok) {
@@ -133,8 +192,39 @@ Døme: "Eg vil jobbe med barn i Bergen" → keywords: ["barn"], categories: ["ba
     return { ...org, _score: score }
   })
 
-  // Sort by score
-  scoredOrgs.sort((a, b) => b._score - a._score)
+  if (userLatitude && userLongitude) {
+    console.log("[v0] Sorting by GPS proximity for user location")
+
+    const orgsWithDistance = await Promise.all(
+      scoredOrgs.map(async (org) => {
+        const coords = await geocodeAddress(
+          org.forretningsadresse_adresse || "",
+          org.forretningsadresse_poststed,
+          org.forretningsadresse_postnummer,
+        )
+
+        const distance = coords
+          ? calculateDistance(userLatitude, userLongitude, coords.lat, coords.lon)
+          : Number.POSITIVE_INFINITY
+
+        return { ...org, distance }
+      }),
+    )
+
+    // Sort by distance first, then by score for ties
+    orgsWithDistance.sort((a, b) => {
+      if (a.distance !== b.distance) {
+        return a.distance - b.distance
+      }
+      return b._score - a._score
+    })
+
+    scoredOrgs = orgsWithDistance
+    console.log("[v0] Closest organization:", scoredOrgs[0]?.navn, "at", scoredOrgs[0]?.distance?.toFixed(1), "km")
+  } else {
+    // Sort by score only
+    scoredOrgs.sort((a, b) => b._score - a._score)
+  }
 
   const topResults = scoredOrgs.slice(0, 5)
   const allResults = scoredOrgs.slice(0, limit)

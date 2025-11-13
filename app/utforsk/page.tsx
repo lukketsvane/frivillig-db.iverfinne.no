@@ -28,7 +28,24 @@ export default function UtforskPage() {
   const [allResults, setAllResults] = useState<Organization[]>([])
   const [hasSearched, setHasSearched] = useState(false)
 
-  const fetchOrganizations = useCallback(async (sok?: string, stad?: string) => {
+  useEffect(() => {
+    const storedLocation = localStorage.getItem("userLocation")
+    if (storedLocation) {
+      try {
+        const location = JSON.parse(storedLocation)
+        if (location.kommune || location.fylke) {
+          const locationStr = location.kommune || location.fylke
+          setLocationQuery(locationStr)
+          // Auto-fetch organizations for this location
+          fetchOrganizations(undefined, locationStr, location)
+        }
+      } catch (error) {
+        console.error("[v0] Error parsing stored location:", error)
+      }
+    }
+  }, [])
+
+  const fetchOrganizations = useCallback(async (sok?: string, stad?: string, location?: any) => {
     if (!sok && !stad) {
       setHasSearched(false)
       setTopResults([])
@@ -41,6 +58,11 @@ export default function UtforskPage() {
     const params = new URLSearchParams()
     if (sok) params.append("sok", sok)
     if (stad) params.append("stad", stad)
+
+    if (location?.latitude && location?.longitude) {
+      params.append("userLatitude", location.latitude.toString())
+      params.append("userLongitude", location.longitude.toString())
+    }
 
     try {
       const response = await fetch(`/api/organizations?${params.toString()}`)
@@ -56,7 +78,16 @@ export default function UtforskPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchOrganizations(searchQuery || undefined, locationQuery || undefined)
+      const storedLocation = localStorage.getItem("userLocation")
+      let location = null
+      if (storedLocation) {
+        try {
+          location = JSON.parse(storedLocation)
+        } catch (e) {
+          console.error("[v0] Error parsing location:", e)
+        }
+      }
+      fetchOrganizations(searchQuery || undefined, locationQuery || undefined, location)
     }, 300)
 
     return () => clearTimeout(timer)
@@ -114,15 +145,6 @@ export default function UtforskPage() {
               ))}
             </div>
           </>
-        )}
-
-        {hasSearched && topResults.length === 0 && (
-          <Card className="border-2">
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">Fann ingen organisasjonar som matchar søket ditt.</p>
-              <p className="text-sm text-muted-foreground mt-2">Prøv andre søkjeord eller stad.</p>
-            </CardContent>
-          </Card>
         )}
 
         {!hasSearched && (
