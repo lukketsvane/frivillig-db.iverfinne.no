@@ -69,17 +69,45 @@ export default function ChatPage() {
       return
     }
 
-    const location = prompt("Skriv inn poststad, kommune eller fylke:")
-    if (location) {
-      const savedLocation = {
-        poststed: location,
-        kommune: location,
-        fylke: location,
-      }
-      setUserLocation(savedLocation)
-      setLocationPermission("granted")
-      localStorage.setItem("userLocation", JSON.stringify(savedLocation))
-    }
+    setLocationPermission("prompt")
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+
+        // Use reverse geocoding to get location details
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=no`,
+          )
+          const data = await response.json()
+
+          const savedLocation = {
+            poststed: data.address?.city || data.address?.town || data.address?.village,
+            kommune: data.address?.municipality || data.address?.city,
+            fylke: data.address?.state,
+            postnummer: data.address?.postcode,
+          }
+
+          setUserLocation(savedLocation)
+          setLocationPermission("granted")
+          localStorage.setItem("userLocation", JSON.stringify(savedLocation))
+        } catch (error) {
+          console.error("[v0] Error getting location details:", error)
+          alert("Kunne ikkje hente plasseringsdetaljar")
+          setLocationPermission("denied")
+        }
+      },
+      (error) => {
+        console.error("[v0] Geolocation error:", error)
+        setLocationPermission("denied")
+        alert("Kunne ikkje få tilgang til plasseringa di. Sjekk nettlesarinnstillingane.")
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    )
   }
 
   const { messages, sendMessage, status } = useChat({
