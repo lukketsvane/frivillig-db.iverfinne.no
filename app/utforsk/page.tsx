@@ -222,7 +222,7 @@ export default function UtforskPage() {
                 {isSearching ? (
                   <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground animate-spin" />
                 ) : (
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
                 )}
                 <Input
                   value={searchQuery}
@@ -231,17 +231,20 @@ export default function UtforskPage() {
                     setActiveTab("search")
                   }}
                   placeholder="Søk etter organisasjon eller aktivitet..."
-                  className="pl-12 h-14 text-base rounded-xl border-2"
-                  autoFocus
+                  className="pl-12 h-14 text-base rounded-xl border-2 relative z-10"
+                  style={{ touchAction: "manipulation" }}
+                  inputMode="search"
                 />
               </div>
               <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
                 <Input
                   value={locationQuery}
                   onChange={(e) => setLocationQuery(e.target.value)}
                   placeholder="Stad eller kommune..."
-                  className="pl-12 h-14 text-base rounded-xl border-2"
+                  className="pl-12 h-14 text-base rounded-xl border-2 relative z-10"
+                  style={{ touchAction: "manipulation" }}
+                  inputMode="text"
                 />
               </div>
             </div>
