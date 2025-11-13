@@ -26,7 +26,6 @@ export default function UtforskPage() {
   const [locationQuery, setLocationQuery] = useState("")
   const [topResults, setTopResults] = useState<Organization[]>([])
   const [allResults, setAllResults] = useState<Organization[]>([])
-  const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
   const fetchOrganizations = useCallback(async (sok?: string, stad?: string) => {
@@ -37,7 +36,6 @@ export default function UtforskPage() {
       return
     }
 
-    setIsLoading(true)
     setHasSearched(true)
 
     const params = new URLSearchParams()
@@ -53,8 +51,6 @@ export default function UtforskPage() {
       console.error("[v0] Error fetching organizations:", error)
       setTopResults([])
       setAllResults([])
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 
@@ -101,13 +97,7 @@ export default function UtforskPage() {
           </div>
         </div>
 
-        {isLoading && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Søkjer...</p>
-          </div>
-        )}
-
-        {!isLoading && hasSearched && topResults.length > 0 && (
+        {hasSearched && topResults.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-4">Topp resultat</h2>
             <div className="space-y-3">
@@ -118,7 +108,7 @@ export default function UtforskPage() {
           </div>
         )}
 
-        {!isLoading && hasSearched && allResults.length > topResults.length && (
+        {hasSearched && allResults.length > topResults.length && (
           <div>
             <h2 className="text-2xl font-bold mb-4">Alle resultat</h2>
             <div className="space-y-3">
@@ -129,7 +119,7 @@ export default function UtforskPage() {
           </div>
         )}
 
-        {!isLoading && hasSearched && topResults.length === 0 && (
+        {hasSearched && topResults.length === 0 && (
           <Card className="border-2">
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">Fann ingen organisasjonar som matchar søket ditt.</p>
@@ -138,7 +128,7 @@ export default function UtforskPage() {
           </Card>
         )}
 
-        {!isLoading && !hasSearched && (
+        {!hasSearched && (
           <Card className="border-2">
             <CardContent className="py-12 text-center">
               <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
