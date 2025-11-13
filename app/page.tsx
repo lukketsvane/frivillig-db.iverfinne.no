@@ -1,59 +1,101 @@
-import Link from "next/link"
+"use client"
+
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
+import { Send, Bot, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Search, MapPin, Users } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Card } from "@/components/ui/card"
 
 export default function HomePage() {
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+  })
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <main className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h1 className="text-5xl font-bold text-balance">Utforsk Frivillige Organisasjonar i Norge</h1>
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="px-4 py-4 border-b lg:px-6">
+        <div className="flex items-center justify-between mx-auto max-w-4xl">
+          <h1 className="text-2xl font-bold">Frivillighets-Chat</h1>
+          <p className="text-sm text-muted-foreground">Powered by AI</p>
+        </div>
+      </header>
 
-          <p className="text-xl text-muted-foreground text-pretty max-w-2xl mx-auto">
-            Søk og oppdag tusenvis av frivillige organisasjonar registrert i Frivillighetsregisteret
-          </p>
-
-          <div className="flex gap-4 justify-center">
-            <Button asChild size="lg">
-              <Link href="/utforsk">
-                <Search className="mr-2 h-5 w-5" />
-                Utforsk Organisasjonar
-              </Link>
-            </Button>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 mt-16">
-            <Card>
-              <CardContent className="pt-6 space-y-2">
-                <Search className="h-10 w-10 text-primary mx-auto" />
-                <h3 className="font-semibold text-lg">Søk og Filtrer</h3>
-                <p className="text-sm text-muted-foreground">
-                  Finn organisasjonar basert på kommune, aktivitet eller namn
-                </p>
-              </CardContent>
+      <main className="flex-1 px-4 py-6 mx-auto w-full max-w-4xl lg:px-6">
+        <div className="flex flex-col gap-4 pb-32">
+          {messages.length === 0 && (
+            <Card className="p-8 text-center">
+              <Bot className="mx-auto mb-4 w-12 h-12 text-muted-foreground" />
+              <h2 className="mb-2 text-xl font-semibold">Velkommen til Frivillighets-Chat!</h2>
+              <p className="text-muted-foreground">
+                Spør meg om frivillige organisasjoner i Norge. Jeg kan hjelpe deg med å finne organisasjoner basert på
+                interesser, lokasjon eller aktiviteter.
+              </p>
             </Card>
+          )}
 
-            <Card>
-              <CardContent className="pt-6 space-y-2">
-                <MapPin className="h-10 w-10 text-primary mx-auto" />
-                <h3 className="font-semibold text-lg">Lokale Organisasjonar</h3>
-                <p className="text-sm text-muted-foreground">Oppdag frivillige organisasjonar i ditt nærområde</p>
-              </CardContent>
-            </Card>
+          {messages.map((message) => (
+            <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`flex gap-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
+                    message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                  }`}
+                >
+                  {message.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                </div>
+                <Card className={`p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <p className="m-0 whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          ))}
 
-            <Card>
-              <CardContent className="pt-6 space-y-2">
-                <Users className="h-10 w-10 text-primary mx-auto" />
-                <h3 className="font-semibold text-lg">Detaljert Informasjon</h3>
-                <p className="text-sm text-muted-foreground">
-                  Se formål, kontaktinformasjon og meir om kvar organisasjon
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="flex gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted shrink-0">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <Card className="p-4 bg-muted">
+                  <div className="flex gap-1">
+                    <div
+                      className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    />
+                    <div
+                      className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <div
+                      className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    />
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
         </div>
       </main>
+
+      <div className="fixed right-0 bottom-0 left-0 px-4 py-4 border-t bg-background/80 backdrop-blur-sm lg:px-6">
+        <form onSubmit={handleSubmit} className="flex gap-2 mx-auto max-w-4xl">
+          <Input
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Spør om frivillige organisasjoner..."
+            className="flex-1"
+            disabled={isLoading}
+          />
+          <Button type="submit" disabled={isLoading || !input.trim()}>
+            <Send className="w-4 h-4" />
+            <span className="sr-only">Send melding</span>
+          </Button>
+        </form>
+      </div>
     </div>
   )
 }
