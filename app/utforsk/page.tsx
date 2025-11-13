@@ -66,7 +66,7 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
         <div className="mb-8">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground active:opacity-70 transition-all mb-4 min-h-[44px]"
           >
             <ArrowLeft className="w-4 h-4" />
             Tilbake til chat
@@ -92,14 +92,19 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
                   name="sok"
                   defaultValue={params.sok}
                   placeholder="Søk etter organisasjon, aktivitet eller formål..."
-                  className="pl-10"
+                  className="pl-10 h-11"
                 />
               </div>
               <div className="flex-1 relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input name="stad" defaultValue={params.stad} placeholder="Stad eller kommune..." className="pl-10" />
+                <Input
+                  name="stad"
+                  defaultValue={params.stad}
+                  placeholder="Stad eller kommune..."
+                  className="pl-10 h-11"
+                />
               </div>
-              <Button type="submit" className="md:w-auto">
+              <Button type="submit" className="md:w-auto h-11 active:scale-95">
                 Søk
               </Button>
             </form>
@@ -110,7 +115,7 @@ export default async function UtforskPage({ searchParams }: { searchParams: Prom
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">Fann ingen organisasjonar som matchar søket ditt.</p>
-              <Button asChild variant="outline" className="mt-4 bg-transparent">
+              <Button asChild variant="outline" className="mt-4 bg-transparent active:scale-95">
                 <Link href="/utforsk">Nullstill søk</Link>
               </Button>
             </CardContent>

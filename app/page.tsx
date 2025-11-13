@@ -135,13 +135,13 @@ export default function ChatPage() {
             <p className="text-sm text-muted-foreground mt-1">Finn den rette frivilligorganisasjonen for deg</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild className="h-10 bg-transparent">
+            <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
             </Button>
             <Button
               variant="outline"
-              size="icon"
-              className={`h-10 w-10 bg-transparent ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""}`}
+              size="icon-lg"
+              className={`h-11 w-11 bg-transparent active:scale-95 ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""}`}
               title={
                 locationPermission === "granted"
                   ? `Plassering: ${userLocation?.poststed || "Aktivert"}`
@@ -149,17 +149,17 @@ export default function ChatPage() {
               }
               onClick={handleLocationRequest}
             >
-              <MapPin className="w-4 h-4" />
+              <MapPin className="w-5 h-5" />
               <span className="sr-only">Plassering</span>
             </Button>
             <Button
               variant="outline"
-              size="icon"
+              size="icon-lg"
               onClick={toggleTheme}
-              className="h-10 w-10 bg-transparent"
+              className="h-11 w-11 bg-transparent active:scale-95"
               title={theme === "light" ? "Bytt til mørk modus" : "Bytt til lys modus"}
             >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               <span className="sr-only">Bytt tema</span>
             </Button>
           </div>
@@ -181,7 +181,7 @@ export default function ChatPage() {
                   <button
                     key={index}
                     onClick={() => handleExampleClick(prompt)}
-                    className="text-left p-4 border border-border hover:border-foreground/20 hover:bg-muted/50 transition-all text-sm text-foreground leading-relaxed"
+                    className="text-left p-4 min-h-[44px] border border-border hover:border-foreground/20 hover:bg-muted/50 active:scale-95 transition-all text-sm text-foreground leading-relaxed"
                   >
                     {prompt}
                   </button>
@@ -283,7 +283,12 @@ export default function ChatPage() {
               onKeyDown={handleKeyDown}
               autoFocus
             />
-            <Button type="submit" disabled={status === "in_progress"} size="icon" className="shrink-0 h-11 w-11">
+            <Button
+              type="submit"
+              disabled={status === "in_progress"}
+              size="icon-lg"
+              className="shrink-0 active:scale-95"
+            >
               <ArrowUp className="w-5 h-5" />
               <span className="sr-only">Send</span>
             </Button>

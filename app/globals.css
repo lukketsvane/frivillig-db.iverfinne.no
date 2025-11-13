@@ -135,6 +135,11 @@
   body {
     /* Remove bg-background to let shader show through */
     @apply text-foreground;
+    /* Added safe area support for iOS notch/Dynamic Island */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Dialogue bubble tails */
