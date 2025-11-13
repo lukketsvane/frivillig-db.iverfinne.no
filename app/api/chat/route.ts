@@ -19,20 +19,66 @@ export async function POST(req: Request) {
   const lifeStage = identifyLifeStage(userMessageText)
   const stageGuidance = lifeStage ? generateStageGuidance(lifeStage) : ""
 
-  // Extract location from message
-  const locationMatch = userMessageText.match(/i\s+([A-ZÆØÅ][a-zæøå]+)/i)
-  const location = locationMatch ? locationMatch[1] : undefined
+  const locationPatterns = [
+    /i\s+([A-ZÆØÅ][a-zæøå]+(?:\s+og\s+[A-ZÆØÅ][a-zæøå]+)?)/i,
+    /frå\s+([A-ZÆØÅ][a-zæøå]+)/i,
+    /([A-ZÆØÅ][a-zæøå]+)-området/i,
+  ]
+
+  let location: string | undefined
+  for (const pattern of locationPatterns) {
+    const match = userMessageText.match(pattern)
+    if (match) {
+      location = match[1]
+      break
+    }
+  }
+
+  const interests: string[] = []
+  const interestKeywords = [
+    "mentor",
+    "leiing",
+    "leiar",
+    "IT",
+    "teknologi",
+    "naturvern",
+    "miljø",
+    "kultur",
+    "musikk",
+    "idrett",
+    "helse",
+    "friluft",
+    "barn",
+    "unge",
+    "eldre",
+    "innvandrar",
+    "flyktning",
+    "mat",
+    "matsvinn",
+    "dyrevelferd",
+    "menneskerettar",
+    "frivillig",
+    "undervisning",
+    "kompetanse",
+  ]
+
+  for (const keyword of interestKeywords) {
+    if (userMessageText.toLowerCase().includes(keyword.toLowerCase())) {
+      interests.push(keyword)
+    }
+  }
 
   console.log("[v0] Detected location:", location)
+  console.log("[v0] Detected interests:", interests)
 
-  // Search for organizations
   let organizationsContext = ""
   let foundOrganizations: any[] = []
-  let organizationList = "" // Legg til liste med gyldige organisasjonar
+  let organizationList = ""
 
   try {
     const organizations = await searchOrganizations({
       location,
+      interests: interests.length > 0 ? interests : undefined,
       limit: 500,
       userPostnummer: userLocation?.postnummer,
       userKommune: userLocation?.kommune,
@@ -72,7 +118,7 @@ ${organizationsContext ? `${organizationsContext}` : ""}
 🚨 KRITISKE REGLAR - BRYT ALDRI DESSE:
 
 1. Du KAN KUN nemne organisasjonar som er lista ovanfor i "GYLDIGE ORGANISASJONAR"
-2. ALDRI finn på organisasjonsnamn eller ID-ar som ikkje er i lista
+2. ALDRI finn på organisasjononsnamn eller ID-ar som ikkje er i lista
 3. Når du nemner ein organisasjon, bruk markdown-lenkje med ID frå lista: [Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ID)
 4. Om du ikkje finn relevante organisasjonar i lista, sei det ærleg: "Eg fann ingen perfekt match, men her er organisasjonar i området..."
 5. ALDRI kopier/lim inn ID-ar feil - sjekk nøye at ID-en matcher organisasjonsnamnet
