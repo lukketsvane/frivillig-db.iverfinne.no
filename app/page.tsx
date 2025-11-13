@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, Moon, Sun, MapPin, HelpCircle } from "lucide-react"
+import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -53,6 +53,10 @@ export default function ChatPage() {
   const [locationPermission, setLocationPermission] = useState<"prompt" | "granted" | "denied">("prompt")
 
   const [examplePrompts, setExamplePrompts] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const shuffled = [...ALL_EXAMPLE_PROMPTS].sort(() => Math.random() - 0.5)
@@ -142,9 +146,6 @@ export default function ChatPage() {
     },
   })
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -153,13 +154,45 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages])
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const message = formData.get("message") as string
 
-    if (message.trim()) {
-      sendMessage({ text: message })
+    if (message.trim() || attachments.length > 0) {
+      if (attachments.length > 0) {
+        const uploadFormData = new FormData()
+        attachments.forEach((file) => {
+          uploadFormData.append("files", file)
+        })
+        uploadFormData.append("message", message)
+        if (userLocation) {
+          uploadFormData.append("location", JSON.stringify(userLocation))
+        }
+
+        try {
+          const response = await fetch("/api/analyze-profile", {
+            method: "POST",
+            body: uploadFormData,
+          })
+
+          if (!response.ok) {
+            throw new Error("Failed to analyze attachments")
+          }
+
+          const data = await response.json()
+
+          sendMessage({ text: message || "Analyser desse vedlegga og gi meg anbefalingar" })
+
+          setAttachments([])
+        } catch (error) {
+          console.error("[v0] Error uploading attachments:", error)
+          alert("Kunne ikkje laste opp vedlegg. Prøv igjen.")
+        }
+      } else {
+        sendMessage({ text: message })
+      }
+
       e.currentTarget.reset()
       inputRef.current?.focus()
     }
@@ -177,6 +210,22 @@ export default function ChatPage() {
 
   const handleExampleClick = (prompt: string) => {
     sendMessage({ text: prompt })
+  }
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    setAttachments((prev) => [...prev, ...files])
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
   return (
@@ -347,7 +396,46 @@ export default function ChatPage() {
         </div>
 
         <div className="border-t px-6 py-4 shrink-0">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {attachments.map((file, index) => (
+                <div key={index} className="flex items-center gap-2 px-3 py-2 bg-muted text-sm border border-border">
+                  <span className="truncate max-w-[200px]">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(index)}
+                    className="shrink-0 hover:bg-muted-foreground/10 p-1 active:scale-95"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="flex gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png,.gif"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-lg"
+              onClick={handleFileSelect}
+              disabled={status === "in_progress"}
+              className="shrink-0 h-11 w-11 bg-transparent active:scale-95"
+              title="Legg til vedlegg"
+            >
+              <Paperclip className="w-5 h-5" />
+              <span className="sr-only">Legg til vedlegg</span>
+            </Button>
+
             <Input
               ref={inputRef}
               name="message"
