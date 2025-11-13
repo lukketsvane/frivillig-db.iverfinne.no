@@ -162,8 +162,8 @@ importers:
         specifier: latest
         version: 4.0.1
       shaders:
-        specifier: 2.1.2
-        version: 2.1.2
+        specifier: latest
+        version: 2.1.10
       sonner:
         specifier: ^1.7.4
         version: 1.7.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -2028,8 +2028,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  shaders@2.1.2:
-    resolution: {integrity: sha512-VytP1bIz4V6D6h4wKnbXjjaS8j3/3GxgOuznHWdgy8krEhECaHNYxrYKtFF5cl9xmWOO+sikWkktunAf350YvA==}
+  shaders@2.1.10:
+    resolution: {integrity: sha512-kf7VjB7HQ5BSsrrWXGhxtiaeugs8bUVcCZWnFTUPiVOKVfmYywU/n9OSMhUOFttiQ/dtyY5+5sml+os1DDRvww==}
 
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
@@ -4175,7 +4175,7 @@ snapshots:
   semver@7.7.3:
     optional: true
 
-  shaders@2.1.2: {}
+  shaders@2.1.10: {}
 
   sharp@0.34.5:
     dependencies:
