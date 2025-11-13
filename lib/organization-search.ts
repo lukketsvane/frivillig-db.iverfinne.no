@@ -60,7 +60,7 @@ export async function searchOrganizations(params: SearchParams): Promise<Organiz
   const supabase = await createClient()
 
   let query = supabase
-    .from("organizations_with_fylke")
+    .from("organisasjonar")
     .select(`
       id,
       organisasjonsnummer,
@@ -112,7 +112,7 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("organizations")
+    .from("organisasjonar")
     .select(`
       id,
       organisasjonsnummer,
