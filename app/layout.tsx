@@ -1,34 +1,16 @@
-import type React from "react"
-import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import "./globals.css"
-
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+import type { Metadata } from 'next'
+import { GeistSans } from 'geist/font/sans'
+import { GeistMono } from 'geist/font/mono'
+import { Analytics } from '@vercel/analytics/next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: "Frivilligorganisasjon-utforskar",
-  description: "Finn den rette frivilligorganisasjonen for deg",
-  generator: "v0.app",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Frivillig-DB",
-  },
+  title: 'v0 App',
+  description: 'Created with v0',
+  generator: 'v0.app',
   icons: {
-    icon: "/icon-192.jpg",
-    apple: "/icon-192.jpg",
+    icon: '/icon.svg',
   },
-}
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 0.75,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
 }
 
 export default function RootLayout({
@@ -37,23 +19,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="nn">
+    <html lang="en">
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const theme = localStorage.getItem('theme');
-                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (theme === 'dark' || (!theme && systemPrefersDark)) {
-                  document.documentElement.classList.add('dark');
-                }
-              })();
-            `,
-          }}
-        />
+        <style>{`
+html {
+  font-family: ${GeistSans.style.fontFamily};
+  --font-sans: ${GeistSans.variable};
+  --font-mono: ${GeistMono.variable};
+}
+        `}</style>
       </head>
-      <body className={`font-sans antialiased ${_geist.className}`}>
+      <body>
         {children}
         <Analytics />
       </body>

@@ -1,32 +1,16 @@
-import { getOrganizationById } from "@/lib/organization-search"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react"
-import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getOrganizationById } from "@/lib/organization-search"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { MapPin, Mail, Phone, Globe, Calendar, Users } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
-const formatAddress = (address?: string | string[] | null): string => {
-  if (!address) {
-    return ""
-  }
-
-  if (Array.isArray(address)) {
-    return address
-      .map((line) => (typeof line === "string" ? line.trim() : ""))
-      .filter((line) => line.length > 0)
-      .reduce((acc, line) => (acc.length > 0 ? `${acc}, ${line}` : line), "")
-  }
-
-  return address.trim()
-}
-
-interface OrganizationPageProps {
-  params: Promise<{
-    id: string
-  }>
-}
-
-export default async function OrganizationPage({ params }: OrganizationPageProps) {
+export default async function OrganizationPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
   const organization = await getOrganizationById(id)
 
@@ -34,190 +18,122 @@ export default async function OrganizationPage({ params }: OrganizationPageProps
     notFound()
   }
 
-  const formattedAddress = formatAddress(organization.forretningsadresse_adresse)
-  const addressPostnummer = organization.forretningsadresse_postnummer?.trim()
-  const addressPoststed = organization.forretningsadresse_poststed?.trim()
-  const addressKommune = organization.forretningsadresse_kommune?.trim()
-
-  const hasAddressInformation = [formattedAddress, addressPostnummer, addressPoststed].some(
-    (value) => typeof value === "string" && value.length > 0,
-  )
-
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header with back button */}
-        <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="sr-only">Tilbake</span>
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">{organization.navn}</h1>
-            {organization.organisasjonsform_beskrivelse && (
-              <p className="text-sm text-muted-foreground mt-1">{organization.organisasjonsform_beskrivelse}</p>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <Button variant="outline" asChild className="mb-6 bg-transparent">
+          <Link href="/utforsk">← Tilbake til søk</Link>
+        </Button>
+
+        <div className="max-w-4xl">
+          <h1 className="text-4xl font-bold mb-2 text-balance">{organization.navn}</h1>
+
+          {organization.forretningsadresse_kommune && (
+            <p className="text-lg text-muted-foreground flex items-center gap-2 mb-6">
+              <MapPin className="h-5 w-5" />
+              {organization.forretningsadresse_kommune}
+              {organization.forretningsadresse_poststed && `, ${organization.forretningsadresse_poststed}`}
+            </p>
+          )}
+
+          <div className="grid gap-6">
+            {organization.aktivitet && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Aktivitet</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="secondary" className="text-base">
+                    {organization.aktivitet}
+                  </Badge>
+                </CardContent>
+              </Card>
             )}
-          </div>
-        </div>
 
-        {/* Main information card */}
-        <Card className="p-6 space-y-6">
-          {/* Purpose */}
-          {organization.vedtektsfestet_formaal && (
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Formål</h2>
-              <p className="text-foreground leading-relaxed">{organization.vedtektsfestet_formaal}</p>
-            </div>
-          )}
+            {organization.vedtektsfestet_formaal && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vedtektsfestet Formål</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-pretty leading-relaxed">{organization.vedtektsfestet_formaal}</p>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Activity */}
-          {organization.aktivitet && (
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Aktivitet</h2>
-              <p className="text-foreground leading-relaxed">{organization.aktivitet}</p>
-            </div>
-          )}
-
-          {/* Contact information */}
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Kontaktinformasjon</h2>
-            <div className="space-y-3">
-              {hasAddressInformation && (
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-foreground">
-                      {formattedAddress && (
-                        <>
-                          {formattedAddress}
-                          <br />
-                        </>
-                      )}
-                      {addressPostnummer && <>{addressPostnummer}{addressPoststed ? " " : ""}</>}
-                      {addressPoststed}
-                    </p>
-                    {addressKommune && (
-                      <p className="text-sm text-muted-foreground">{addressKommune}</p>
-                    )}
+            <Card>
+              <CardHeader>
+                <CardTitle>Kontaktinformasjon</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {organization.epost && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-muted-foreground" />
+                    <a href={`mailto:${organization.epost}`} className="text-blue-600 hover:underline">
+                      {organization.epost}
+                    </a>
                   </div>
-                </div>
-              )}
+                )}
+                {organization.telefon && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-5 w-5 text-muted-foreground" />
+                    <a href={`tel:${organization.telefon}`} className="text-blue-600 hover:underline">
+                      {organization.telefon}
+                    </a>
+                  </div>
+                )}
+                {organization.hjemmeside && (
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    <a
+                      href={organization.hjemmeside}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {organization.hjemmeside}
+                    </a>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-              {organization.telefon && (
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <a href={`tel:${organization.telefon}`} className="text-foreground hover:underline">
-                    {organization.telefon}
-                  </a>
-                </div>
-              )}
-
-              {organization.mobiltelefon && (
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <a href={`tel:${organization.mobiltelefon}`} className="text-foreground hover:underline">
-                    {organization.mobiltelefon}
-                  </a>
-                </div>
-              )}
-
-              {organization.epost && (
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <a href={`mailto:${organization.epost}`} className="text-foreground hover:underline">
-                    {organization.epost}
-                  </a>
-                </div>
-              )}
-
-              {organization.hjemmeside && (
-                <div className="flex items-center gap-3">
-                  <Globe className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <a
-                    href={organization.hjemmeside}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-foreground hover:underline"
-                  >
-                    {organization.hjemmeside}
-                  </a>
-                </div>
-              )}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Organisasjonsinformasjon</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {organization.organisasjonsform_beskrivelse && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-medium min-w-[140px]">Organisasjonsform:</span>
+                    <span>{organization.organisasjonsform_beskrivelse}</span>
+                  </div>
+                )}
+                {organization.naeringskode1_beskrivelse && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-medium min-w-[140px]">Næringskode:</span>
+                    <span>{organization.naeringskode1_beskrivelse}</span>
+                  </div>
+                )}
+                {organization.registreringsdato_frivillighetsregisteret && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">Registrert:</span>
+                    <span>
+                      {new Date(organization.registreringsdato_frivillighetsregisteret).toLocaleDateString("no-NO")}
+                    </span>
+                  </div>
+                )}
+                {organization.antall_ansatte && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">Ansatte:</span>
+                    <span>{organization.antall_ansatte}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-
-          {/* Additional details */}
-          <div className="border-t pt-6 space-y-3">
-            <h2 className="text-lg font-semibold mb-3">Detaljar</h2>
-
-            {organization.naeringskode1_beskrivelse && (
-              <div>
-                <span className="text-sm text-muted-foreground">Næringskode: </span>
-                <span className="text-sm text-foreground">{organization.naeringskode1_beskrivelse}</span>
-              </div>
-            )}
-
-            {organization.organisasjonsnummer && (
-              <div>
-                <span className="text-sm text-muted-foreground">Organisasjonsnummer: </span>
-                <span className="text-sm text-foreground">{organization.organisasjonsnummer}</span>
-              </div>
-            )}
-
-            {organization.antall_ansatte !== null && organization.antall_ansatte !== undefined && (
-              <div>
-                <span className="text-sm text-muted-foreground">Antall tilsette: </span>
-                <span className="text-sm text-foreground">{organization.antall_ansatte}</span>
-              </div>
-            )}
-
-            {organization.stiftelsesdato && (
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Stiftelsesdato: </span>
-                <span className="text-sm text-foreground">{organization.stiftelsesdato}</span>
-              </div>
-            )}
-
-            {organization.registreringsdato_frivillighetsregisteret && (
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Registrert i frivillighetsregisteret: </span>
-                <span className="text-sm text-foreground">
-                  {new Date(organization.registreringsdato_frivillighetsregisteret).toLocaleDateString("nn-NO")}
-                </span>
-              </div>
-            )}
-
-            {organization.kontonummer && (
-              <div>
-                <span className="text-sm text-muted-foreground">Kontonummer: </span>
-                <span className="text-sm text-foreground">{organization.kontonummer}</span>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Action buttons */}
-        <div className="flex gap-3">
-          {organization.hjemmeside && (
-            <Button asChild className="flex-1">
-              <a href={organization.hjemmeside} target="_blank" rel="noopener noreferrer">
-                <Globe className="w-4 h-4 mr-2" />
-                Besøk nettside
-              </a>
-            </Button>
-          )}
-          {organization.epost && (
-            <Button asChild variant="outline" className="flex-1 bg-transparent">
-              <a href={`mailto:${organization.epost}`}>
-                <Mail className="w-4 h-4 mr-2" />
-                Send e-post
-              </a>
-            </Button>
-          )}
         </div>
       </div>
     </div>
