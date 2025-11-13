@@ -98,25 +98,22 @@ export default function UtforskPage() {
         </div>
 
         {hasSearched && topResults.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-4">Topp resultat</h2>
-            <div className="space-y-3">
-              {topResults.map((org) => (
-                <OrganizationCard key={org.id} organization={org} />
-              ))}
-            </div>
+          <div className="space-y-3 mb-6">
+            {topResults.map((org) => (
+              <OrganizationCard key={org.id} organization={org} showExtended />
+            ))}
           </div>
         )}
 
         {hasSearched && allResults.length > topResults.length && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Alle resultat</h2>
+          <>
+            <div className="border-t border-border my-6" />
             <div className="space-y-3">
               {allResults.slice(topResults.length).map((org) => (
                 <OrganizationCard key={org.id} organization={org} />
               ))}
             </div>
-          </div>
+          </>
         )}
 
         {hasSearched && topResults.length === 0 && (
