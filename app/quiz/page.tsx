@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { QUIZ_QUESTIONS, VOLUNTEER_TYPE_RESULTS, type VolunteerType, getSearchKeywordsForType } from "@/lib/quiz-data"
 import { OrganizationCard } from "@/components/organization-card"
@@ -24,7 +24,6 @@ export default function QuizPage() {
   })
   const [result, setResult] = useState<VolunteerType | null>(null)
   const [recommendedOrgs, setRecommendedOrgs] = useState<OrganizationCardData[]>([])
-  const [loadingOrgs, setLoadingOrgs] = useState(false)
 
   useEffect(() => {
     if (result && stage === "result") {
@@ -33,7 +32,6 @@ export default function QuizPage() {
   }, [result, stage])
 
   const fetchRecommendedOrganizations = async (volunteerType: VolunteerType) => {
-    setLoadingOrgs(true)
     try {
       const keywords = getSearchKeywordsForType(volunteerType)
 
@@ -83,8 +81,6 @@ export default function QuizPage() {
       setRecommendedOrgs(data.organizations || [])
     } catch (error) {
       console.error("[v0] Error fetching recommendations:", error)
-    } finally {
-      setLoadingOrgs(false)
     }
   }
 
@@ -194,7 +190,7 @@ export default function QuizPage() {
           )}
 
           {stage === "result" && result && (
-            <div className="flex flex-col py-6">
+            <div className="flex flex-col py-6 animate-fadeIn">
               <div className="flex flex-col items-center text-center gap-6 mb-8">
                 <h2 className="text-3xl font-bold leading-tight">
                   Din frivilligtype er:
@@ -223,13 +219,7 @@ export default function QuizPage() {
               <div className="w-full mt-8">
                 <h3 className="text-2xl font-bold mb-4">Anbefalte organisasjonar:</h3>
 
-                {loadingOrgs && (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-
-                {!loadingOrgs && recommendedOrgs.length > 0 && (
+                {recommendedOrgs.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {recommendedOrgs.map((org) => (
                       <OrganizationCard key={org.id} organization={org} />
@@ -237,7 +227,7 @@ export default function QuizPage() {
                   </div>
                 )}
 
-                {!loadingOrgs && recommendedOrgs.length === 0 && (
+                {recommendedOrgs.length === 0 && (
                   <p className="text-muted-foreground text-center py-8">
                     Fann ingen organisasjonar for denne typen. Prøv å dele plassering eller utforsk alle organisasjonar.
                   </p>
