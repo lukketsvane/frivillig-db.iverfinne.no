@@ -279,7 +279,7 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
-      <div className="fixed inset-0 -z-10 w-full h-full">
+      <div className="fixed inset-0 w-full h-full pointer-events-none" style={{ zIndex: -1 }}>
         <Shader className="w-full h-full">
           <SolidColor color="#000000" maskType="alpha" />
           <Pixelate scale={15} maskType="alpha" opacity={0.84}>
