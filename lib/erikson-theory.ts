@@ -152,3 +152,29 @@ export function generateStageGuidance(stage: EriksonStage): string {
 
   return guidance[stage.stage] || ""
 }
+
+/**
+ * Interprets user interest tags using Erikson's theory to provide context
+ * @param tags - Array of user interest tags
+ * @returns Guidance text based on tags and life stage
+ */
+export function interpretTagsErikson(tags: string[]): string {
+  if (!tags || tags.length === 0) {
+    return ""
+  }
+
+  // Find matching stage based on tags
+  for (const stage of eriksonStages) {
+    const matchingKeywords = tags.filter(tag => 
+      stage.needsKeywords.some(keyword => 
+        tag.toLowerCase().includes(keyword.toLowerCase())
+      )
+    )
+
+    if (matchingKeywords.length > 0) {
+      return generateStageGuidance(stage)
+    }
+  }
+
+  return ""
+}
