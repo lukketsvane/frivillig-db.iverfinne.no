@@ -298,8 +298,8 @@ export default function ChatPage() {
         </Shader>
       </div>
 
-      <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden bg-background/95 backdrop-blur-sm border-border/50">
-        <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
+      <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-xl overflow-hidden bg-background border-border">
+        <div className="border-b px-6 py-4 flex items-center justify-between shrink-0 bg-background">
           <div>
             <button
               onClick={toggleAgentMode}
@@ -310,14 +310,14 @@ export default function ChatPage() {
             </button>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
+            <Button variant="outline" size="sm" asChild className="h-11 bg-background active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
             </Button>
             <Button
               variant="outline"
               size="icon-lg"
               asChild
-              className="h-11 w-11 bg-transparent active:scale-95"
+              className="h-11 w-11 bg-background active:scale-95"
               title="Ta quiz"
             >
               <Link href="/quiz">
@@ -328,7 +328,7 @@ export default function ChatPage() {
             <Button
               variant="outline"
               size="icon-lg"
-              className={`h-11 w-11 bg-transparent active:scale-95 ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""}`}
+              className={`h-11 w-11 bg-background active:scale-95 ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""}`}
               title={
                 locationPermission === "granted"
                   ? `Plassering: ${userLocation?.poststed || "Aktivert"}`
@@ -343,7 +343,7 @@ export default function ChatPage() {
               variant="outline"
               size="icon-lg"
               onClick={toggleTheme}
-              className="h-11 w-11 bg-transparent active:scale-95"
+              className="h-11 w-11 bg-background active:scale-95"
               title={theme === "light" ? "Bytt til mørk modus" : "Bytt til lys modus"}
             >
               {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
@@ -356,7 +356,7 @@ export default function ChatPage() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
               {isAgentMode ? (
-                <div className="text-center max-w-md space-y-4 bg-card p-8 rounded-lg border border-border/50 shadow-sm">
+                <div className="text-center max-w-md space-y-4 bg-card p-8 rounded-lg border border-border shadow-md">
                   <div className="text-lg font-medium">Last opp vedlegg for personaliserte forslag</div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Vi analyserer dokumenta dine og gir tilpassa organisasjonsanbefalingar basert på profilen din.
@@ -368,7 +368,7 @@ export default function ChatPage() {
                     <button
                       key={index}
                       onClick={() => handleExampleClick(prompt)}
-                      className="text-left p-4 min-h-[44px] bg-card border border-border hover:border-foreground/20 hover:bg-muted/80 active:scale-95 transition-all text-sm text-foreground leading-relaxed shadow-sm"
+                      className="text-left p-4 min-h-[44px] bg-card border border-border hover:border-foreground/20 hover:bg-accent active:scale-95 transition-all text-sm text-foreground leading-relaxed shadow-md rounded-lg"
                     >
                       {prompt}
                     </button>
@@ -418,7 +418,7 @@ export default function ChatPage() {
                           {messageAttachments.map((att, idx) => (
                             <div
                               key={idx}
-                              className={`flex items-center gap-2 px-3 py-2 text-sm shadow-sm ${
+                              className={`flex items-center gap-2 px-3 py-2 text-sm shadow-md rounded ${
                                 message.role === "user"
                                   ? "bg-foreground text-background"
                                   : "bg-card text-foreground border border-border"
@@ -441,10 +441,10 @@ export default function ChatPage() {
                       ) && (
                         <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                           <div
-                            className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed shadow-sm ${
+                            className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed shadow-md rounded-lg ${
                               message.role === "user"
                                 ? "bg-foreground text-background"
-                                : "bg-card text-foreground border border-border/50"
+                                : "bg-card text-foreground border border-border"
                             }`}
                           >
                             {message.role === "assistant" ? (
@@ -481,7 +481,7 @@ export default function ChatPage() {
 
               {status === "in_progress" && (
                 <div className="flex justify-start">
-                  <div className="relative max-w-[75%] px-4 py-3 bg-card border border-border/50 shadow-sm">
+                  <div className="relative max-w-[75%] px-4 py-3 bg-card border border-border shadow-md rounded-lg">
                     <div className="flex gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
                       <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
@@ -496,18 +496,18 @@ export default function ChatPage() {
           )}
         </div>
 
-        <div className="border-t px-6 py-4 shrink-0 bg-background/95 backdrop-blur-sm">
+        <div className="border-t px-6 py-4 shrink-0 bg-background">
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {attachments.map((file, index) => (
-                <div key={index} className="flex items-center gap-2 px-3 py-2 bg-card text-sm border border-border">
+                <div key={index} className="flex items-center gap-2 px-3 py-2 bg-card text-sm border border-border rounded shadow-sm">
                   <FileText className="w-4 h-4 shrink-0" />
                   <span className="truncate max-w-[200px]">{file.name}</span>
                   <button
                     type="button"
                     onClick={() => removeAttachment(index)}
                     disabled={isProcessing}
-                    className="shrink-0 hover:bg-muted-foreground/10 p-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="shrink-0 hover:bg-muted-foreground/10 p-1 rounded active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -532,7 +532,7 @@ export default function ChatPage() {
               size="icon-lg"
               onClick={handleFileSelect}
               disabled={isProcessing || status === "in_progress"}
-              className="shrink-0 h-11 w-11 bg-transparent active:scale-95"
+              className="shrink-0 h-11 w-11 bg-background active:scale-95"
               title="Legg til vedlegg"
             >
               <Paperclip className="w-5 h-5" />
@@ -544,7 +544,7 @@ export default function ChatPage() {
               name="message"
               placeholder="Skriv ei melding..."
               disabled={isProcessing || status === "in_progress"}
-              className="flex-1 h-11"
+              className="flex-1 h-11 bg-background"
               autoComplete="off"
               onKeyDown={handleKeyDown}
               autoFocus
