@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X, FileText } from 'lucide-react'
+import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -14,7 +14,6 @@ import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
-import { ProfileCard } from "@/components/profile-card"
 
 type Theme = "light" | "dark"
 
@@ -310,7 +309,7 @@ export default function ChatPage() {
               {isAgentMode ? "agent-modus" : "frivillig-db"}
             </button>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
             </Button>
@@ -350,7 +349,6 @@ export default function ChatPage() {
               {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               <span className="sr-only">Bytt tema</span>
             </Button>
-            <ProfileCard />
           </div>
         </div>
 
