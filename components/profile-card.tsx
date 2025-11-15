@@ -59,10 +59,10 @@ export function ProfileCard() {
     return (
       <div className="flex gap-2">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/auth">Logg inn</Link>
+          <Link href="/auth/login">Logg inn</Link>
         </Button>
         <Button size="sm" asChild>
-          <Link href="/auth?mode=signup">Registrer deg</Link>
+          <Link href="/auth/sign-up">Registrer deg</Link>
         </Button>
       </div>
     )
