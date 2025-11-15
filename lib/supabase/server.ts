@@ -21,3 +21,6 @@ export async function createClient() {
     },
   })
 }
+
+// Export createClient as an alias for createServerClient to match imports
+export { createClient as createServerClient }

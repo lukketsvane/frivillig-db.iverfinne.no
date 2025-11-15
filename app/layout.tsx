@@ -1,8 +1,7 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { ProfileCard } from "@/components/profile-card"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -61,9 +60,6 @@ export default function RootLayout({
         />
       </head>
       <body className={`font-sans antialiased ${_geist.className}`}>
-        <div className="fixed top-4 right-4 z-50">
-          <ProfileCard />
-        </div>
         {children}
         <Analytics />
       </body>
