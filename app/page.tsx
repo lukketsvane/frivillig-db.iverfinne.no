@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
+import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X, FileText } from 'lucide-react'
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -298,7 +298,7 @@ export default function ChatPage() {
         </Shader>
       </div>
 
-      <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
+      <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden bg-background/95 backdrop-blur-sm border-border/50">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>
             <button
@@ -352,11 +352,11 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 min-h-0">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0 bg-background">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
               {isAgentMode ? (
-                <div className="text-center max-w-md space-y-4">
+                <div className="text-center max-w-md space-y-4 bg-card p-8 rounded-lg border border-border/50 shadow-sm">
                   <div className="text-lg font-medium">Last opp vedlegg for personaliserte forslag</div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Vi analyserer dokumenta dine og gir tilpassa organisasjonsanbefalingar basert på profilen din.
@@ -368,7 +368,7 @@ export default function ChatPage() {
                     <button
                       key={index}
                       onClick={() => handleExampleClick(prompt)}
-                      className="text-left p-4 min-h-[44px] border border-border hover:border-foreground/20 hover:bg-muted/50 active:scale-95 transition-all text-sm text-foreground leading-relaxed"
+                      className="text-left p-4 min-h-[44px] bg-card border border-border hover:border-foreground/20 hover:bg-muted/80 active:scale-95 transition-all text-sm text-foreground leading-relaxed shadow-sm"
                     >
                       {prompt}
                     </button>
@@ -418,10 +418,10 @@ export default function ChatPage() {
                           {messageAttachments.map((att, idx) => (
                             <div
                               key={idx}
-                              className={`flex items-center gap-2 px-3 py-2 text-sm ${
+                              className={`flex items-center gap-2 px-3 py-2 text-sm shadow-sm ${
                                 message.role === "user"
                                   ? "bg-foreground text-background"
-                                  : "bg-muted text-foreground border border-border"
+                                  : "bg-card text-foreground border border-border"
                               }`}
                             >
                               <FileText className="w-4 h-4 shrink-0" />
@@ -441,8 +441,10 @@ export default function ChatPage() {
                       ) && (
                         <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                           <div
-                            className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed ${
-                              message.role === "user" ? "bg-foreground text-background" : "bg-muted text-foreground"
+                            className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed shadow-sm ${
+                              message.role === "user"
+                                ? "bg-foreground text-background"
+                                : "bg-card text-foreground border border-border/50"
                             }`}
                           >
                             {message.role === "assistant" ? (
@@ -479,7 +481,7 @@ export default function ChatPage() {
 
               {status === "in_progress" && (
                 <div className="flex justify-start">
-                  <div className="relative max-w-[75%] px-4 py-3 bg-muted">
+                  <div className="relative max-w-[75%] px-4 py-3 bg-card border border-border/50 shadow-sm">
                     <div className="flex gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
                       <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
@@ -494,11 +496,11 @@ export default function ChatPage() {
           )}
         </div>
 
-        <div className="border-t px-6 py-4 shrink-0">
+        <div className="border-t px-6 py-4 shrink-0 bg-background/95 backdrop-blur-sm">
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {attachments.map((file, index) => (
-                <div key={index} className="flex items-center gap-2 px-3 py-2 bg-muted text-sm border border-border">
+                <div key={index} className="flex items-center gap-2 px-3 py-2 bg-card text-sm border border-border">
                   <FileText className="w-4 h-4 shrink-0" />
                   <span className="truncate max-w-[200px]">{file.name}</span>
                   <button
