@@ -3,8 +3,9 @@ import { GoogleGenAI } from "@google/genai"
 import type { UserProfile } from "@/lib/user-profile"
 
 // Qdrant configuration
-const QDRANT_HOST = process.env.QDRANT_HOST || "localhost"
-const QDRANT_PORT = parseInt(process.env.QDRANT_PORT || "6333")
+// Support Qdrant Cloud via QDRANT_URL and QDRANT_API_KEY, fallback to localhost
+const QDRANT_URL = process.env.QDRANT_URL
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY
 const COLLECTION_NAME = "frivillig_orgs"
 const EMBEDDING_MODEL = "text-embedding-004"
 
@@ -14,10 +15,21 @@ let googleAI: GoogleGenAI | null = null
 
 function getQdrantClient(): QdrantClient {
   if (!qdrantClient) {
-    qdrantClient = new QdrantClient({
-      host: QDRANT_HOST,
-      port: QDRANT_PORT,
-    })
+    if (QDRANT_URL) {
+      // Connect to Qdrant Cloud with API key
+      console.log("[Qdrant] Connecting to Qdrant Cloud")
+      qdrantClient = new QdrantClient({
+        url: QDRANT_URL,
+        apiKey: QDRANT_API_KEY,
+      })
+    } else {
+      // Fallback to local Qdrant instance
+      console.log("[Qdrant] Connecting to local Qdrant at localhost:6333")
+      qdrantClient = new QdrantClient({
+        host: "localhost",
+        port: 6333,
+      })
+    }
   }
   return qdrantClient
 }
@@ -197,7 +209,8 @@ export async function searchOrganizationsVector(
     if (error instanceof Error) {
       console.error("[Qdrant] Search error:", error.message)
       if (error.message.includes("ECONNREFUSED")) {
-        console.error("[Qdrant] Connection refused - is Qdrant running on", QDRANT_HOST + ":" + QDRANT_PORT, "?")
+        const target = QDRANT_URL || "localhost:6333"
+        console.error("[Qdrant] Connection refused - check QDRANT_URL or ensure local Qdrant is running at", target)
       }
     } else {
       console.error("[Qdrant] Search error:", error)
