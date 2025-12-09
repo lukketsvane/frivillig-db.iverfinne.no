@@ -10,7 +10,7 @@ export function UserMenu() {
 
   if (isLoading) {
     return (
-      <Button variant="outline" size="icon-lg" className="h-11 w-11 bg-transparent" disabled>
+      <Button variant="outline" size="icon-lg" className="bg-transparent" disabled>
         <Loader2 className="w-5 h-5 animate-spin" />
       </Button>
     )
@@ -22,7 +22,7 @@ export function UserMenu() {
         variant="outline"
         size="icon-lg"
         asChild
-        className="h-11 w-11 bg-transparent active:scale-95"
+        className="bg-transparent active:scale-95"
         title="Min profil"
       >
         <Link href="/profile">
@@ -38,7 +38,7 @@ export function UserMenu() {
       variant="outline"
       size="icon-lg"
       asChild
-      className="h-11 w-11 bg-transparent active:scale-95"
+      className="bg-transparent active:scale-95"
       title="Logg inn"
     >
       <Link href="/login">
