@@ -1,6 +1,7 @@
 import { streamText, convertToCoreMessages } from "ai"
 import { google } from "@ai-sdk/google"
-import { searchOrganizations, formatOrganizationForChat, createOrganizationCards } from "@/lib/organization-search"
+import { searchOrganizations, formatOrganizationForChat, createOrganizationCards, type Organization } from "@/lib/organization-search"
+import { searchOrganizationsVector, isQdrantAvailable, mapQdrantResultToOrganization } from "@/lib/qdrant-search"
 import { identifyLifeStage, generateStageGuidance } from "@/lib/erikson-theory"
 import { getUser } from "@/lib/auth"
 import {
@@ -8,6 +9,7 @@ import {
   updateUserProfileFromMessage,
   extractInterests,
   inferAgeFromText,
+  type UserProfile,
 } from "@/lib/user-profile"
 
 export const maxDuration = 30
@@ -113,32 +115,57 @@ export async function POST(req: Request) {
   console.log("[v0] Detected interests:", allInterests)
 
   let organizationsContext = ""
-  let foundOrganizations: any[] = []
+  let foundOrganizations: Organization[] = []
   let organizationList = ""
 
-  try {
-    const organizations = await searchOrganizations({
-      location,
-      interests: allInterests.length > 0 ? allInterests : undefined,
-      limit: 500,
-      userPostnummer: userLocation?.postnummer || userProfile?.location_poststed,
-      userKommune: userLocation?.kommune || userProfile?.location_kommune,
-      userFylke: userLocation?.fylke || userProfile?.location_fylke,
-    })
+  // Create a profile with location from userLocation if available
+  const searchProfile: UserProfile | null = userProfile ? {
+    ...userProfile,
+    location_kommune: userLocation?.kommune || userProfile.location_kommune,
+  } : null
 
-    foundOrganizations = organizations
+  try {
+    // Try Qdrant vector search first for fast semantic matching
+    const qdrantAvailable = await isQdrantAvailable()
+    
+    if (qdrantAvailable && userMessageText.trim()) {
+      console.log("[v0] Using Qdrant vector search with user profile")
+      // searchOrganizationsVector combines user message with top 3 interests from profile
+      const qdrantResults = await searchOrganizationsVector(userMessageText, searchProfile, 15)
+      
+      if (qdrantResults.length > 0) {
+        // Map Qdrant results to Organization interface using helper function
+        foundOrganizations = qdrantResults.map(mapQdrantResultToOrganization)
+        console.log("[v0] Qdrant returned", foundOrganizations.length, "results")
+      }
+    }
+    
+    // Fallback to traditional search if Qdrant is not available or returned no results
+    if (foundOrganizations.length === 0) {
+      console.log("[v0] Falling back to traditional search")
+      const organizations = await searchOrganizations({
+        location,
+        interests: allInterests.length > 0 ? allInterests : undefined,
+        limit: 20,
+        userPostnummer: userLocation?.postnummer || userProfile?.location_poststed,
+        userKommune: userLocation?.kommune || userProfile?.location_kommune,
+      })
+      foundOrganizations = organizations.slice(0, 15)
+    }
+
     console.log("[v0] Found organizations:", foundOrganizations.length)
 
-    if (organizations.length > 0) {
-      organizationList = "\n\n=== GYLDIGE ORGANISASJONAR (KUN DESSE FINST I DATABASEN) ===\n"
-      organizations.forEach((org, index) => {
+    if (foundOrganizations.length > 0) {
+      // Only show top 15 organizations in the prompt (not 500!)
+      organizationList = "\n\n=== GYLDIGE ORGANISASJONAR (KUN DESSE 15 FINST I DATABASEN) ===\n"
+      foundOrganizations.slice(0, 15).forEach((org, index) => {
         organizationList += `${index + 1}. "${org.navn}" (ID: ${org.id})\n`
         organizationList += `   URL: https://frivillig-db.iverfinne.no/organisasjon/${org.id}\n`
       })
       organizationList += "=== SLUTT PÅ LISTE ===\n\n"
 
-      organizationsContext = "\n\nRelevante frivilligorganisasjonar:\n"
-      organizations.forEach((org) => {
+      organizationsContext = "\n\nRelevante frivilligorganisasjonar (topp 15 treff):\n"
+      foundOrganizations.slice(0, 15).forEach((org) => {
         organizationsContext += formatOrganizationForChat(org)
       })
     }
@@ -162,11 +189,12 @@ ${organizationsContext ? `${organizationsContext}` : ""}
 
 🚨 KRITISKE REGLAR - BRYT ALDRI DESSE:
 
-1. Du KAN KUN nemne organisasjonar som er lista ovanfor i "GYLDIGE ORGANISASJONAR"
+1. Du KAN KUN nemne organisasjonar som er lista ovanfor i "GYLDIGE ORGANISASJONAR" (maks 15 stk)
 2. ALDRI finn på organisasjononsnamn eller ID-ar som ikkje er i lista
 3. Når du nemner ein organisasjon, bruk markdown-lenkje med ID frå lista: [Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ID)
 4. Om du ikkje finn relevante organisasjonar i lista, sei det ærleg: "Eg fann ingen perfekt match, men her er organisasjonar i området..."
 5. ALDRI kopier/lim inn ID-ar feil - sjekk nøye at ID-en matcher organisasjonsnamnet
+6. Vel dei 2-4 mest relevante organisasjonane frå lista basert på brukaren sine behov
 
 EKSEMPEL PÅ RIKTIG SVAR:
 "Eg fann desse organisasjonane for deg:

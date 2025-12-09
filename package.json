@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "ingest": "python3 scripts/ingest_qdrant.py"
   },
   "dependencies": {
     "@ai-sdk/google": "latest",
@@ -14,6 +15,7 @@
     "@ai-sdk/react": "latest",
     "@google/genai": "^1.32.0",
     "@hookform/resolvers": "^3.10.0",
+    "@qdrant/js-client-rest": "^1.16.2",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",
