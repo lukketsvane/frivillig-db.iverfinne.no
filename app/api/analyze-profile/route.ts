@@ -1,11 +1,24 @@
 import { generateText } from "ai"
+import { google } from "@ai-sdk/google"
 import { searchOrganizations, createOrganizationCards } from "@/lib/organization-search"
 
 export const maxDuration = 60
 
-// Helper to send SSE progress update
-function sendProgress(controller: ReadableStreamDefaultController, step: string, progress: number, message: string) {
-  const data = JSON.stringify({ type: "progress", step, progress, message })
+// Helper to send SSE progress update - sends immediately
+function sendProgress(
+  controller: ReadableStreamDefaultController,
+  step: string,
+  progress: number,
+  message: string,
+  details?: string
+) {
+  const data = JSON.stringify({ type: "progress", step, progress, message, details, timestamp: Date.now() })
+  controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`))
+}
+
+// Helper to send thinking indicator - shows AI is processing
+function sendThinking(controller: ReadableStreamDefaultController, thought: string) {
+  const data = JSON.stringify({ type: "thinking", thought, timestamp: Date.now() })
   controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`))
 }
 
@@ -28,186 +41,47 @@ export async function POST(req: Request) {
 
     console.log("[v0] Analyzing profile with", files.length, "files")
 
-    // For streaming requests
-    if (isStreamRequest) {
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            // Step 1: Reading files
-            sendProgress(controller, "reading", 10, "Les vedlegg...")
+    // Always use streaming for better UX
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Step 1: Instantly acknowledge and start reading
+          sendProgress(controller, "start", 5, "Startar analyse...")
+          sendThinking(controller, "Opnar vedlegg...")
 
-            const fileContents: string[] = []
-            for (const file of files) {
-              try {
-                const fileName = file.name
-                const fileType = file.type
+          const fileContents: string[] = []
+          for (const file of files) {
+            sendThinking(controller, `Les ${file.name}...`)
 
-                if (fileType.startsWith("text/") || fileName.endsWith(".txt")) {
-                  const text = await file.text()
-                  fileContents.push(`--- ${fileName} ---\n${text}\n`)
-                } else if (fileType.startsWith("image/")) {
-                  fileContents.push(`[Bilde: ${fileName}, storleik: ${(file.size / 1024).toFixed(1)} KB]`)
-                } else if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
-                  fileContents.push(
-                    `[PDF-dokument: ${fileName}, storleik: ${(file.size / 1024).toFixed(1)} KB - Innhald kan ikkje lesast direkte, men brukaren har sannsynlegvis sendt CV eller liknande dokument]`,
-                  )
-                } else {
-                  fileContents.push(`[Fil: ${fileName}, type: ${fileType}]`)
-                }
-              } catch (error) {
-                console.error("[v0] Error reading file:", file.name, error)
-                fileContents.push(`[Kunne ikkje lese fil: ${file.name}]`)
+            try {
+              const fileName = file.name
+              const fileType = file.type
+
+              if (fileType.startsWith("text/") || fileName.endsWith(".txt")) {
+                const text = await file.text()
+                fileContents.push(`--- ${fileName} ---\n${text}\n`)
+              } else if (fileType.startsWith("image/")) {
+                fileContents.push(`[Bilde: ${fileName}, storleik: ${(file.size / 1024).toFixed(1)} KB]`)
+              } else if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
+                fileContents.push(
+                  `[PDF-dokument: ${fileName}, storleik: ${(file.size / 1024).toFixed(1)} KB - Innhald kan ikkje lesast direkte, men brukaren har sannsynlegvis sendt CV eller liknande dokument]`,
+                )
+              } else {
+                fileContents.push(`[Fil: ${fileName}, type: ${fileType}]`)
               }
+            } catch (error) {
+              console.error("[v0] Error reading file:", file.name, error)
+              fileContents.push(`[Kunne ikkje lese fil: ${file.name}]`)
             }
-
-            // Step 2: Analyzing profile
-            sendProgress(controller, "analyzing", 25, "Analyserer profil...")
-
-            const analysisPrompt = `Du er ein ekspert på å analysere brukarinformasjon og lage frivilligprofilar.
-
-Basert på desse vedlegga og meldinga frå brukaren, analyser personligheten, interessene, ferdigheitene og livssituasjonen deira:
-
-Melding: ${message || "Ingen melding"}
-
-Vedlegg:
-${fileContents.join("\n\n")}
-
-${fileContents.some((f) => f.includes("PDF-dokument")) ? "\nMerk: Brukaren har sendt inn PDF-dokument (sannsynlegvis CV). Sjølv om du ikkje kan lese innhaldet direkte, kan du anta at dette er ein profesjonell person som søkjer frivilligarbeid der dei kan bruke sin kompetanse. Analyser basert på dette og eventuell melding frå brukaren." : ""}
-
-Lag ein detaljert brukarprofil som inkluderer:
-1. **Alder/Livsfase**: Estimert aldersgruppe basert på innhald (eller typisk for nokon som sender CV)
-2. **Interesser**: Kva er brukaren interessert i? (Om du ikkje veit, foreslå generelle kategoriar)
-3. **Ferdigheiter**: Kva kompetanse eller erfaring har dei? (Om CV er sendt, anta profesjonell bakgrunn)
-4. **Motivasjon**: Kvifor vil dei vere frivillig?
-5. **Preferred områder**: Kva type frivilligarbeid passar dei best for?
-
-Skriv profilen på nynorsk, ver spesifikk og konkret. Ver positiv og konstruktiv sjølv om du manglar detaljar.`
-
-            const analysisResponse = await generateText({
-              model: "openai/gpt-4o",
-              prompt: analysisPrompt,
-            })
-
-            const profileAnalysis = analysisResponse.text
-            console.log("[v0] Profile analysis complete")
-
-            // Step 3: Extracting interests
-            sendProgress(controller, "extracting", 50, "Finn interesser og ferdigheiter...")
-
-            const keywordPrompt = `Basert på denne brukarprofilen, gi meg ein kommaseparert liste med nøkkelord for å søke etter relevante frivilligorganisasjonar.
-
-Profil:
-${profileAnalysis}
-
-Returner BERRE nøkkelord (maksimum 10), separert med komma. Ingen forklaringar. Eksempel: "helse, barn, miljø, kultur"`
-
-            const keywordResponse = await generateText({
-              model: "openai/gpt-4o",
-              prompt: keywordPrompt,
-            })
-
-            const keywordsText = keywordResponse.text
-            const interests = keywordsText
-              .split(",")
-              .map((k) => k.trim())
-              .filter((k) => k.length > 0)
-            console.log("[v0] Extracted interests:", interests)
-
-            // Step 4: Searching organizations
-            sendProgress(controller, "searching", 70, "Søkjer i organisasjonar...")
-
-            const organizations = await searchOrganizations({
-              interests,
-              limit: 8,
-              userPostnummer: userLocation?.postnummer,
-              userKommune: userLocation?.kommune,
-              userFylke: userLocation?.fylke,
-              userLatitude: userLocation?.latitude,
-              userLongitude: userLocation?.longitude,
-            })
-
-            console.log("[v0] Found", organizations.length, "organizations")
-
-            // Step 5: Generating recommendations
-            sendProgress(controller, "recommending", 85, "Lagar anbefalingar...")
-
-            const recommendationPrompt = `Du er ein hjelpsam assistent som gir personaliserte frivilliganbefalingar.
-
-Brukarprofil:
-${profileAnalysis}
-
-Desse organisasjonane er relevante:
-${organizations.map((org, i) => `${i + 1}. ${org.navn} (ID: ${org.id})\n   - ${org.aktivitet || "Ingen beskriving"}\n   - ${org.forretningsadresse_poststed || "Ukjend stad"}`).join("\n\n")}
-
-Skriv ein kort, personleg anbefaling (3-4 setningar) som:
-1. Oppsummerer kva brukaren ser ut til å søke
-2. Forklarer kvifor desse organisasjonane passar dei
-3. Oppmodar dei til å utforske meir
-
-Skriv på nynorsk og ver entusiastisk men profesjonell. IKKJE nemn spesifikke organisasjonsnamn i teksten, berre generelle kategoriar.`
-
-            const recommendationResponse = await generateText({
-              model: "openai/gpt-4o",
-              prompt: recommendationPrompt,
-            })
-
-            const recommendation = recommendationResponse.text
-
-            // Step 6: Complete
-            sendProgress(controller, "complete", 100, "Ferdig!")
-
-            // Send final result
-            sendResult(controller, {
-              profile: profileAnalysis,
-              recommendation,
-              organizations: createOrganizationCards(organizations),
-            })
-
-            controller.close()
-          } catch (error) {
-            console.error("[v0] Stream error:", error)
-            const errorData = JSON.stringify({ type: "error", error: "Failed to analyze profile" })
-            controller.enqueue(new TextEncoder().encode(`data: ${errorData}\n\n`))
-            controller.close()
           }
-        },
-      })
 
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
-      })
-    }
+          sendProgress(controller, "reading", 15, "Vedlegg lese", `${files.length} fil(ar) lasta`)
 
-    // Non-streaming request (backwards compatible)
-    const fileContents: string[] = []
-    for (const file of files) {
-      try {
-        const fileName = file.name
-        const fileType = file.type
+          // Step 2: Profile analysis with Gemini
+          sendProgress(controller, "analyzing", 20, "Analyserer profil...")
+          sendThinking(controller, "Analyserer kompetanse og interesser...")
 
-        if (fileType.startsWith("text/") || fileName.endsWith(".txt")) {
-          const text = await file.text()
-          fileContents.push(`--- ${fileName} ---\n${text}\n`)
-        } else if (fileType.startsWith("image/")) {
-          fileContents.push(`[Bilde: ${fileName}, storleik: ${(file.size / 1024).toFixed(1)} KB]`)
-        } else if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
-          fileContents.push(
-            `[PDF-dokument: ${fileName}, storleik: ${(file.size / 1024).toFixed(1)} KB - Innhald kan ikkje lesast direkte, men brukaren har sannsynlegvis sendt CV eller liknande dokument]`,
-          )
-        } else {
-          fileContents.push(`[Fil: ${fileName}, type: ${fileType}]`)
-        }
-      } catch (error) {
-        console.error("[v0] Error reading file:", file.name, error)
-        fileContents.push(`[Kunne ikkje lese fil: ${file.name}]`)
-      }
-    }
-
-    const analysisPrompt = `Du er ein ekspert på å analysere brukarinformasjon og lage frivilligprofilar.
+          const analysisPrompt = `Du er ein ekspert på å analysere brukarinformasjon og lage frivilligprofilar.
 
 Basert på desse vedlegga og meldinga frå brukaren, analyser personligheten, interessene, ferdigheitene og livssituasjonen deira:
 
@@ -216,78 +90,123 @@ Melding: ${message || "Ingen melding"}
 Vedlegg:
 ${fileContents.join("\n\n")}
 
-${fileContents.some((f) => f.includes("PDF-dokument")) ? "\nMerk: Brukaren har sendt inn PDF-dokument (sannsynlegvis CV). Sjølv om du ikkje kan lese innhaldet direkte, kan du anta at dette er ein profesjonell person som søkjer frivilligarbeid der dei kan bruke sin kompetanse. Analyser basert på dette og eventuell melding frå brukaren." : ""}
+${fileContents.some((f) => f.includes("PDF-dokument")) ? "\nMerk: Brukaren har sendt inn PDF-dokument (sannsynlegvis CV). Sjølv om du ikkje kan lese innhaldet direkte, kan du anta at dette er ein profesjonell person som søkjer frivilligarbeid der dei kan bruke sin kompetanse." : ""}
 
-Lag ein detaljert brukarprofil som inkluderer:
-1. **Alder/Livsfase**: Estimert aldersgruppe basert på innhald (eller typisk for nokon som sender CV)
-2. **Interesser**: Kva er brukaren interessert i? (Om du ikkje veit, foreslå generelle kategoriar)
-3. **Ferdigheiter**: Kva kompetanse eller erfaring har dei? (Om CV er sendt, anta profesjonell bakgrunn)
-4. **Motivasjon**: Kvifor vil dei vere frivillig?
-5. **Preferred områder**: Kva type frivilligarbeid passar dei best for?
+Lag ein kort brukarprofil som inkluderer:
+1. **Alder/Livsfase**: Estimert aldersgruppe
+2. **Interesser**: 3-5 hovudinteresser
+3. **Ferdigheiter**: Relevante ferdigheiter
+4. **Motivasjon**: Kva type frivilligarbeid passar
 
-Skriv profilen på nynorsk, ver spesifikk og konkret. Ver positiv og konstruktiv sjølv om du manglar detaljar.`
+Skriv på nynorsk, ver kort og konkret (maks 150 ord).`
 
-    const analysisResponse = await generateText({
-      model: "openai/gpt-4o",
-      prompt: analysisPrompt,
-    })
+          sendThinking(controller, "Gemini analyserer...")
 
-    const profileAnalysis = analysisResponse.text
+          const analysisResponse = await generateText({
+            model: google("gemini-2.0-flash"),
+            prompt: analysisPrompt,
+          })
 
-    const keywordPrompt = `Basert på denne brukarprofilen, gi meg ein kommaseparert liste med nøkkelord for å søke etter relevante frivilligorganisasjonar.
+          const profileAnalysis = analysisResponse.text
+          sendProgress(controller, "analyzing", 40, "Profil analysert", "Finn relevante interesser")
+
+          // Step 3: Extract keywords
+          sendProgress(controller, "extracting", 45, "Finn interesser...")
+          sendThinking(controller, "Identifiserer nøkkelord...")
+
+          const keywordPrompt = `Basert på denne brukarprofilen, gi meg ein kommaseparert liste med nøkkelord for å søke etter relevante frivilligorganisasjonar.
 
 Profil:
 ${profileAnalysis}
 
-Returner BERRE nøkkelord (maksimum 10), separert med komma. Ingen forklaringar. Eksempel: "helse, barn, miljø, kultur"`
+Returner BERRE nøkkelord (maksimum 8), separert med komma. Ingen forklaringar.`
 
-    const keywordResponse = await generateText({
-      model: "openai/gpt-4o",
-      prompt: keywordPrompt,
-    })
+          const keywordResponse = await generateText({
+            model: google("gemini-2.0-flash"),
+            prompt: keywordPrompt,
+          })
 
-    const keywordsText = keywordResponse.text
-    const interests = keywordsText
-      .split(",")
-      .map((k) => k.trim())
-      .filter((k) => k.length > 0)
+          const keywordsText = keywordResponse.text
+          const interests = keywordsText
+            .split(",")
+            .map((k: string) => k.trim())
+            .filter((k: string) => k.length > 0)
 
-    const organizations = await searchOrganizations({
-      interests,
-      limit: 8,
-      userPostnummer: userLocation?.postnummer,
-      userKommune: userLocation?.kommune,
-      userFylke: userLocation?.fylke,
-      userLatitude: userLocation?.latitude,
-      userLongitude: userLocation?.longitude,
-    })
+          sendProgress(controller, "extracting", 55, "Interesser identifisert", interests.slice(0, 4).join(", "))
 
-    const recommendationPrompt = `Du er ein hjelpsam assistent som gir personaliserte frivilliganbefalingar.
+          // Step 4: Search organizations
+          sendProgress(controller, "searching", 60, "Søkjer organisasjonar...")
+          sendThinking(controller, `Søkjer blant tusenvis av organisasjonar...`)
+
+          const organizations = await searchOrganizations({
+            interests,
+            limit: 8,
+            userPostnummer: userLocation?.postnummer,
+            userKommune: userLocation?.kommune,
+            userFylke: userLocation?.fylke,
+            userLatitude: userLocation?.latitude,
+            userLongitude: userLocation?.longitude,
+          })
+
+          sendProgress(
+            controller,
+            "searching",
+            75,
+            "Organisasjonar funne",
+            `${organizations.length} relevante treff`
+          )
+
+          // Step 5: Generate recommendations
+          sendProgress(controller, "recommending", 80, "Lagar anbefalingar...")
+          sendThinking(controller, "Tilpassar anbefalingar til profilen...")
+
+          const recommendationPrompt = `Du er ein hjelpsam assistent som gir personaliserte frivilliganbefalingar.
 
 Brukarprofil:
 ${profileAnalysis}
 
 Desse organisasjonane er relevante:
-${organizations.map((org, i) => `${i + 1}. ${org.navn} (ID: ${org.id})\n   - ${org.aktivitet || "Ingen beskriving"}\n   - ${org.forretningsadresse_poststed || "Ukjend stad"}`).join("\n\n")}
+${organizations.map((org, i) => `${i + 1}. ${org.navn} - ${org.aktivitet || "Frivillig organisasjon"}`).join("\n")}
 
-Skriv ein kort, personleg anbefaling (3-4 setningar) som:
-1. Oppsummerer kva brukaren ser ut til å søke
-2. Forklarer kvifor desse organisasjonane passar dei
-3. Oppmodar dei til å utforske meir
+Skriv ein kort, personleg anbefaling (2-3 setningar) som:
+1. Oppsummerer kva brukaren søkjer
+2. Forklarer kvifor desse organisasjonane passar
 
-Skriv på nynorsk og ver entusiastisk men profesjonell. IKKJE nemn spesifikke organisasjonsnamn i teksten, berre generelle kategoriar.`
+Skriv på nynorsk og ver positiv men kortfatta.`
 
-    const recommendationResponse = await generateText({
-      model: "openai/gpt-4o",
-      prompt: recommendationPrompt,
+          const recommendationResponse = await generateText({
+            model: google("gemini-2.0-flash"),
+            prompt: recommendationPrompt,
+          })
+
+          const recommendation = recommendationResponse.text
+
+          // Step 6: Complete
+          sendProgress(controller, "complete", 100, "Ferdig!", "Anbefalingar klare")
+
+          // Send final result
+          sendResult(controller, {
+            profile: profileAnalysis,
+            recommendation,
+            organizations: createOrganizationCards(organizations),
+          })
+
+          controller.close()
+        } catch (error) {
+          console.error("[v0] Stream error:", error)
+          const errorData = JSON.stringify({ type: "error", error: "Analyse feila. Prøv igjen." })
+          controller.enqueue(new TextEncoder().encode(`data: ${errorData}\n\n`))
+          controller.close()
+        }
+      },
     })
 
-    const recommendation = recommendationResponse.text
-
-    return Response.json({
-      profile: profileAnalysis,
-      recommendation,
-      organizations: createOrganizationCards(organizations),
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     })
   } catch (error) {
     console.error("[v0] Error in analyze-profile:", error)

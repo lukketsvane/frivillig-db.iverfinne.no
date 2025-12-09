@@ -6,8 +6,8 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText, Bot, Check } from "lucide-react"
-import { useRef, useEffect, useState } from "react"
+import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText, Bot, Check, Loader2, Sparkles } from "lucide-react"
+import { useRef, useEffect, useState, useCallback } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
 import Link from "next/link"
@@ -15,37 +15,30 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 import { UserMenu } from "@/components/user-menu"
+import { useAuth } from "@/components/auth-provider"
+import { getClientUserProfile, generatePersonalizedPrompts, type UserProfile } from "@/lib/user-profile"
 
 interface AgentProgress {
   step: string
   progress: number
   message: string
+  details?: string
 }
 
-const ALL_EXAMPLE_PROMPTS = [
-  "54 år, erfaring innan leiing - vil bidra til lokalsamfunnet i Stavanger",
-  "Vil dele kompetanse innan IT med nye innvandrarar. Korleis starte?",
-  "Interessert i naturvern og vil lede lokale tiltak i Sogn og Fjordane",
-  "50 år, ynskjer å bli mentor for unge i karrierestart. Organisasjonar i Bergen?",
-  "Pensjonist med bakgrunn i helse, vil hjelpe eldre i Trondheim",
-  "Erfaring som økonomisjef, vil gi råd til små bedrifter i Tromsø",
-  "Vil arrangere kulturarrangement for lokalsamfunnet i Kristiansand",
-  "55 år, lidenskapleg om idrett - vil trene ungdomslag i Oslo",
-  "Ønskjer å støtte flyktningar med integrasjon og språkopplæring i Drammen",
-  "Erfaring med mat og servering, vil hjelpe matbank i Fredrikstad",
-  "Vil lede miljøprosjekt for berekraftig utvikling i Haugesund",
-  "Pensjonist, glad i dyr - vil jobbe med dyrevelferd i Lillehammer",
-  "Pedagogisk bakgrunn, vil hjelpe barn med leksehjelp i Molde",
-  "Erfaring som ingeniør, vil inspirere unge til teknologifag i Bodø",
-  "Vil arbeide med likestilling og kvinners rettar i Ålesund",
-  "Pensjonist med erfaring i rettsvesen, vil gi juridisk rettleiing til familiar i Sarpsborg",
-  "Musikkinteressert, vil undervise barn og unge i Sandefjord",
-  "Vil støtte menneske med psykisk helse gjennom samtalegrupper i Arendal",
-  "Handverkserfaring, vil lære unge restaurering og håndverk i Hamar",
-  "Vil arbeide med demokrati og menneskerettar internasjonalt frå Porsgrunn",
+interface AgentThinking {
+  thought: string
+  timestamp: number
+}
+
+const DEFAULT_PROMPTS = [
+  "54 år, erfaring innan leiing - vil bidra til lokalsamfunnet",
+  "Vil dele kompetanse innan IT med nye innvandrarar",
+  "Interessert i naturvern og vil lede lokale tiltak",
+  "Pensjonist med bakgrunn i helse, vil hjelpe eldre",
 ]
 
 const AGENT_STEPS = [
+  { id: "start", label: "Startar", icon: "🚀" },
   { id: "reading", label: "Les vedlegg", icon: "📄" },
   { id: "analyzing", label: "Analyserer profil", icon: "🔍" },
   { id: "extracting", label: "Finn interesser", icon: "💡" },
@@ -55,6 +48,7 @@ const AGENT_STEPS = [
 ]
 
 export default function ChatPage() {
+  const { user } = useAuth()
   const [userLocation, setUserLocation] = useState<{
     poststed?: string
     kommune?: string
@@ -65,11 +59,13 @@ export default function ChatPage() {
   } | null>(null)
   const [locationPermission, setLocationPermission] = useState<"prompt" | "granted" | "denied">("prompt")
 
-  const [examplePrompts, setExamplePrompts] = useState<string[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [examplePrompts, setExamplePrompts] = useState<string[]>(DEFAULT_PROMPTS)
   const [attachments, setAttachments] = useState<File[]>([])
   const [isAgentMode, setIsAgentMode] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [agentProgress, setAgentProgress] = useState<AgentProgress | null>(null)
+  const [agentThinking, setAgentThinking] = useState<AgentThinking | null>(null)
   const [agentResult, setAgentResult] = useState<{
     recommendation: string
     organizations: OrganizationCardData[]
@@ -79,10 +75,25 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
 
+  // Load user profile and generate personalized prompts
   useEffect(() => {
-    const shuffled = [...ALL_EXAMPLE_PROMPTS].sort(() => Math.random() - 0.5)
-    setExamplePrompts(shuffled.slice(0, 4))
+    const loadProfile = async () => {
+      if (user?.id) {
+        const profile = await getClientUserProfile(user.id)
+        if (profile) {
+          setUserProfile(profile)
+          const personalized = generatePersonalizedPrompts(profile)
+          if (personalized.length > 0) {
+            setExamplePrompts(personalized)
+          }
+        }
+      }
+    }
+    loadProfile()
+  }, [user?.id])
 
+  // Load saved location
+  useEffect(() => {
     const savedLocation = localStorage.getItem("userLocation")
     if (savedLocation) {
       try {
@@ -94,7 +105,7 @@ export default function ChatPage() {
     }
   }, [])
 
-  const handleLocationRequest = () => {
+  const handleLocationRequest = useCallback(() => {
     if (!navigator.geolocation) {
       alert("Nettlesaren din støttar ikkje plasseringstenester")
       return
@@ -125,47 +136,37 @@ export default function ChatPage() {
           localStorage.setItem("userLocation", JSON.stringify(savedLocation))
         } catch (error) {
           console.error("[v0] Error getting location details:", error)
-          alert("Kunne ikkje hente plasseringsdetaljar")
           setLocationPermission("denied")
         }
       },
-      (error) => {
-        console.error("[v0] Geolocation error:", error)
+      () => {
         setLocationPermission("denied")
-        alert("Kunne ikkje få tilgang til plasseringa di. Sjekk nettlesarinnstillingane.")
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
-  }
+  }, [])
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
-    body: {
-      userLocation,
-    },
+    body: { userLocation },
   })
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, agentProgress, agentResult])
+  }, [messages, agentProgress, agentResult, scrollToBottom])
 
   const handleAgentAnalysis = async (files: File[], message: string) => {
     setIsProcessing(true)
-    setAgentProgress({ step: "reading", progress: 0, message: "Startar analyse..." })
+    setAgentProgress({ step: "start", progress: 0, message: "Startar..." })
+    setAgentThinking(null)
     setAgentResult(null)
 
     const uploadFormData = new FormData()
-    files.forEach((file) => {
-      uploadFormData.append("files", file)
-    })
+    files.forEach((file) => uploadFormData.append("files", file))
     uploadFormData.append("message", message)
     if (userLocation) {
       uploadFormData.append("location", JSON.stringify(userLocation))
@@ -174,29 +175,24 @@ export default function ChatPage() {
     try {
       const response = await fetch("/api/analyze-profile", {
         method: "POST",
-        headers: {
-          Accept: "text/event-stream",
-        },
+        headers: { Accept: "text/event-stream" },
         body: uploadFormData,
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to analyze")
-      }
+      if (!response.ok) throw new Error("Failed to analyze")
 
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
+      if (!reader) throw new Error("No response body")
 
-      if (!reader) {
-        throw new Error("No response body")
-      }
-
+      let buffer = ""
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split("\n")
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
@@ -208,13 +204,17 @@ export default function ChatPage() {
                   step: data.step,
                   progress: data.progress,
                   message: data.message,
+                  details: data.details,
                 })
+              } else if (data.type === "thinking") {
+                setAgentThinking({ thought: data.thought, timestamp: data.timestamp })
               } else if (data.type === "result") {
                 setAgentResult({
                   recommendation: data.recommendation,
                   organizations: data.organizations,
                 })
                 setAgentProgress({ step: "complete", progress: 100, message: "Ferdig!" })
+                setAgentThinking(null)
               } else if (data.type === "error") {
                 throw new Error(data.error)
               }
@@ -235,10 +235,7 @@ export default function ChatPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
-    if (isProcessing) {
-      return
-    }
+    if (isProcessing) return
 
     const formData = new FormData(e.currentTarget)
     const message = formData.get("message") as string
@@ -247,21 +244,16 @@ export default function ChatPage() {
       if (attachments.length > 0) {
         setIsAgentMode(true)
         await handleAgentAnalysis(attachments, message)
-        if (formRef.current) {
-          formRef.current.reset()
-        }
+        formRef.current?.reset()
       } else {
         setIsProcessing(true)
         try {
           await sendMessage({ text: message })
-          if (formRef.current) {
-            formRef.current.reset()
-          }
+          formRef.current?.reset()
         } finally {
           setIsProcessing(false)
         }
       }
-
       inputRef.current?.focus()
     }
   }
@@ -269,29 +261,18 @@ export default function ChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
-      const form = e.currentTarget.form
-      if (form) {
-        form.requestSubmit()
-      }
+      e.currentTarget.form?.requestSubmit()
     }
   }
 
-  const handleExampleClick = (prompt: string) => {
-    sendMessage({ text: prompt })
-  }
-
-  const handleFileSelect = () => {
-    if (isProcessing) return
-    fileInputRef.current?.click()
-  }
+  const handleExampleClick = (prompt: string) => sendMessage({ text: prompt })
+  const handleFileSelect = () => !isProcessing && fileInputRef.current?.click()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isProcessing) return
     const files = Array.from(e.target.files || [])
     setAttachments((prev) => [...prev, ...files])
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const removeAttachment = (index: number) => {
@@ -302,6 +283,7 @@ export default function ChatPage() {
     setIsAgentMode((prev) => !prev)
     setAgentProgress(null)
     setAgentResult(null)
+    setAgentThinking(null)
   }
 
   const getCurrentStepIndex = () => {
@@ -336,92 +318,90 @@ export default function ChatPage() {
             <button
               onClick={toggleAgentMode}
               className="text-2xl font-semibold hover:opacity-70 transition-opacity active:scale-95 flex items-center gap-2"
-              title="Bytt mellom normal og agent-modus"
             >
               {isAgentMode && <Bot className="w-6 h-6 text-accent" />}
               {isAgentMode ? "agent-modus" : "frivillig-db"}
             </button>
+            {userProfile && userProfile.conversation_count > 1 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Tilpassa for deg basert på {userProfile.conversation_count} samtalar
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
             </Button>
-            <Button
-              variant="outline"
-              size="icon-lg"
-              asChild
-              className="h-11 w-11 bg-transparent active:scale-95"
-              title="Ta quiz"
-            >
+            <Button variant="outline" size="icon-lg" asChild className="h-11 w-11 bg-transparent active:scale-95">
               <Link href="/quiz">
                 <HelpCircle className="w-5 h-5" />
-                <span className="sr-only">Ta quiz</span>
               </Link>
             </Button>
             <Button
               variant="outline"
               size="icon-lg"
               className={`h-11 w-11 bg-transparent active:scale-95 ${locationPermission === "granted" ? "text-green-600" : ""}`}
-              title={
-                locationPermission === "granted"
-                  ? `Plassering: ${userLocation?.poststed || "Aktivert"}`
-                  : "Legg til plassering"
-              }
               onClick={handleLocationRequest}
             >
               <MapPin className="w-5 h-5" />
-              <span className="sr-only">Plassering</span>
             </Button>
             <UserMenu />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 min-h-0">
-          {/* Agent Mode Progress UI */}
+          {/* Agent Mode UI */}
           {isAgentMode && (agentProgress || agentResult) && (
             <div className="space-y-6 mb-6">
-              {/* Progress Steps */}
+              {/* Live Progress with Thinking */}
               {agentProgress && agentProgress.step !== "complete" && (
-                <div className="bg-muted/30 rounded-lg p-4 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Bot className="w-5 h-5 text-accent animate-pulse" />
-                    <span className="font-medium">Agent analyserer...</span>
+                <div className="bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-accent animate-pulse" />
+                      <span className="font-medium">Agent analyserer</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{agentProgress.progress}%</span>
+                  </div>
+
+                  {/* Thinking bubble - shows what AI is doing right now */}
+                  {agentThinking && (
+                    <div className="flex items-center gap-2 text-sm text-accent animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="italic">{agentThinking.thought}</span>
+                    </div>
+                  )}
+
+                  {/* Progress bar */}
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-accent to-secondary transition-all duration-300 ease-out"
+                      style={{ width: `${agentProgress.progress}%` }}
+                    />
                   </div>
 
                   {/* Step indicators */}
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-7 gap-1">
                     {AGENT_STEPS.map((step, index) => {
                       const currentIndex = getCurrentStepIndex()
                       const isComplete = index < currentIndex
                       const isCurrent = index === currentIndex
-                      const isPending = index > currentIndex
 
                       return (
-                        <div
-                          key={step.id}
-                          className={`flex items-center gap-3 p-2 rounded transition-all ${
-                            isCurrent ? "bg-accent/10" : ""
-                          }`}
-                        >
+                        <div key={step.id} className="flex flex-col items-center gap-1">
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all ${
                               isComplete
-                                ? "bg-green-500 text-white"
+                                ? "bg-green-500 text-white scale-90"
                                 : isCurrent
-                                  ? "bg-accent text-white animate-pulse"
-                                  : "bg-muted text-muted-foreground"
+                                  ? "bg-accent text-white scale-110 shadow-lg"
+                                  : "bg-muted text-muted-foreground scale-75 opacity-50"
                             }`}
                           >
                             {isComplete ? <Check className="w-4 h-4" /> : step.icon}
                           </div>
                           <span
-                            className={`text-sm ${
-                              isComplete
-                                ? "text-green-600 line-through"
-                                : isCurrent
-                                  ? "text-foreground font-medium"
-                                  : "text-muted-foreground"
-                            }`}
+                            className={`text-[10px] text-center leading-tight ${isCurrent ? "text-accent font-medium" : "text-muted-foreground"}`}
                           >
                             {step.label}
                           </span>
@@ -430,13 +410,10 @@ export default function ChatPage() {
                     })}
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-accent transition-all duration-500 ease-out"
-                      style={{ width: `${agentProgress.progress}%` }}
-                    />
-                  </div>
+                  {/* Current step details */}
+                  {agentProgress.details && (
+                    <p className="text-sm text-muted-foreground text-center">{agentProgress.details}</p>
+                  )}
                 </div>
               )}
 
@@ -446,7 +423,7 @@ export default function ChatPage() {
                   <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Bot className="w-5 h-5 text-accent" />
-                      <span className="font-medium text-accent">Anbefaling</span>
+                      <span className="font-medium text-accent">Personleg anbefaling</span>
                     </div>
                     <p className="text-foreground leading-relaxed">{agentResult.recommendation}</p>
                   </div>
@@ -466,9 +443,16 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Normal Chat Mode */}
+          {/* Chat Mode */}
           {!isAgentMode && messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
+              {userProfile && userProfile.conversation_count > 1 && (
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Velkomen tilbake! Forslag basert på det eg har lært om deg:
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
                 {examplePrompts.map((prompt, index) => (
                   <button
@@ -489,7 +473,7 @@ export default function ChatPage() {
                 </div>
                 <div className="text-lg font-medium">Last opp CV eller profil</div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Last opp CV, profilskildring eller andre dokument, så analyserer eg dei og finn dei beste
+                  Last opp CV, profilskildring eller andre dokument. Eg analyserer dei med Gemini AI og finn dei beste
                   organisasjonane for deg.
                 </p>
                 <Button onClick={handleFileSelect} className="gap-2">
@@ -504,31 +488,20 @@ export default function ChatPage() {
                 {messages.map((message) => {
                   const textContent = message.parts
                     .filter((part) => part.type === "text")
-                    .map((part) => {
-                      if ("text" in part) {
-                        return part.text
-                      }
-                      return ""
-                    })
+                    .map((part) => ("text" in part ? part.text : ""))
                     .join("")
 
                   let organizations: OrganizationCardData[] = []
                   try {
-                    if (message.data && typeof message.data === "object") {
-                      if ("organizations" in message.data) {
-                        const orgs = message.data.organizations
-                        if (Array.isArray(orgs)) {
-                          organizations = orgs
-                        }
-                      }
+                    if (message.data && typeof message.data === "object" && "organizations" in message.data) {
+                      const orgs = message.data.organizations
+                      if (Array.isArray(orgs)) organizations = orgs
                     }
-                  } catch (error) {
-                    console.error("[v0] Error parsing message data:", error)
-                  }
+                  } catch {}
 
                   return (
                     <div key={message.id} className="space-y-4">
-                      {textContent && textContent.trim() && (
+                      {textContent?.trim() && (
                         <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                           <div
                             className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed ${
@@ -540,11 +513,10 @@ export default function ChatPage() {
                                 remarkPlugins={[remarkGfm]}
                                 className="prose prose-sm max-w-none"
                                 components={{
-                                  a: ({ node, ...props }) => (
+                                  a: ({ ...props }) => (
                                     <a {...props} className="font-bold italic underline hover:opacity-80" />
                                   ),
-                                  p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
-                                  strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
+                                  p: ({ ...props }) => <p {...props} className="mb-2 last:mb-0" />,
                                 }}
                               >
                                 {textContent}
@@ -596,7 +568,7 @@ export default function ChatPage() {
                     type="button"
                     onClick={() => removeAttachment(index)}
                     disabled={isProcessing}
-                    className="shrink-0 hover:bg-muted-foreground/10 p-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="shrink-0 hover:bg-muted-foreground/10 p-1 active:scale-95 disabled:opacity-50"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -622,10 +594,8 @@ export default function ChatPage() {
               onClick={handleFileSelect}
               disabled={isProcessing || status === "in_progress"}
               className={`shrink-0 h-11 w-11 bg-transparent active:scale-95 ${isAgentMode ? "border-accent text-accent" : ""}`}
-              title="Legg til vedlegg"
             >
               <Paperclip className="w-5 h-5" />
-              <span className="sr-only">Legg til vedlegg</span>
             </Button>
 
             <Input
@@ -645,7 +615,6 @@ export default function ChatPage() {
               className="shrink-0 active:scale-95"
             >
               <ArrowUp className="w-5 h-5" />
-              <span className="sr-only">Send</span>
             </Button>
           </form>
           <div className="mt-2 flex gap-3 justify-center">
