@@ -20,6 +20,7 @@ Requirements:
 import json
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ try:
     from qdrant_client import QdrantClient
     from qdrant_client.models import (
         Distance,
+        FieldCondition,
+        Filter,
+        MatchValue,
         PointStruct,
         VectorParams,
     )
@@ -191,8 +195,6 @@ def check_org_exists(client: QdrantClient, org_id: str) -> bool:
     Uses scroll to find points with matching payload.id field.
     """
     try:
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
-        
         # Search for points with matching org_id in payload
         results, _ = client.scroll(
             collection_name=COLLECTION_NAME,
@@ -249,7 +251,7 @@ def extract_fylke_from_kommune(kommune: str | None) -> str | None:
     return fylke_mapping.get(kommune_upper)
 
 
-def create_point(org: dict[str, Any], embedding: list[float], point_id: int) -> PointStruct:
+def create_point(org: dict[str, Any], embedding: list[float]) -> PointStruct:
     """Create a Qdrant point from organization data."""
     # Extract kommune from address
     kommune = org.get("forretningsadresse_kommune")
@@ -277,6 +279,9 @@ def create_point(org: dict[str, Any], embedding: list[float], point_id: int) -> 
         "organisasjonsform": org.get("organisasjonsform_beskrivelse", ""),
         "naeringskode": org.get("naeringskode1_beskrivelse", ""),
     }
+    
+    # Use UUID for point_id to avoid collisions when adding to existing collection
+    point_id = str(uuid.uuid4())
     
     return PointStruct(
         id=point_id,
@@ -359,11 +364,10 @@ def main():
         texts = [item[1] for item in batch]
         embeddings = get_embeddings_batch(texts)
         
-        # Create points
+        # Create points with UUID-based IDs to avoid collisions
         points = []
-        for j, ((org, _), embedding) in enumerate(zip(batch, embeddings)):
-            point_id = i + j + skipped_count  # Offset by skipped to avoid ID collisions
-            point = create_point(org, embedding, point_id)
+        for (org, _), embedding in zip(batch, embeddings):
+            point = create_point(org, embedding)
             points.append(point)
         
         # Upsert batch
