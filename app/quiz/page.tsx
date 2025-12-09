@@ -118,10 +118,10 @@ export default function QuizPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
       <div className="fixed inset-0 -z-10 w-full h-full">
         <Shader className="w-full h-full">
-          <SolidColor color="#000000" maskType="alpha" />
+          <SolidColor color="#27085E" maskType="alpha" />
           <Pixelate scale={15} maskType="alpha" opacity={0.84}>
             <SineWave
-              color="#ffffff"
+              color="#EDF455"
               amplitude={0.87}
               frequency={10.8}
               speed={-0.5}

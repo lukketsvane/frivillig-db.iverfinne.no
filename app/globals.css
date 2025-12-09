@@ -1,80 +1,67 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.09 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.09 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.09 0 0);
-  --primary: oklch(0.28 0 0);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.09 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.09 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.28 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0rem; /* removed border radius */
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Frivillig brand colors */
+  --color-yellow-lime: #EDF455;
+  --color-cream: #FEFAEB;
+  --color-purple-deep: #27085E;
+  --color-black: #020202;
+  --color-red: #E84232;
+  --color-teal: #48A0AD;
+  --color-purple-dark: #45275D;
+  --color-orange: #DE9852;
+  --color-olive: #99A65F;
+  --color-mint: #1ABAA4;
+  --color-white: #FFFFFF;
+  --color-blue: #3B64EC;
+  --color-pink: #E3A7A6;
+  --color-slate: #45556C;
+  --color-coral: #FF6467;
+  --color-purple-bright: #9810FA;
+  --color-gold: #F0B100;
+  --color-yellow-soft: #FFF085;
+  --color-peach: #F3CD96;
+  --color-rose: #A85D5F;
+  --color-navy: #0F172B;
+  --color-gray: #62748E;
+  --color-charcoal: #2D2D2D;
+  --color-silver: #CAD5E2;
 
-  /* Add smooth transition for theme switching */
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.dark {
-  --background: oklch(0.09 0 0);
-  --foreground: oklch(0.99 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.99 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.99 0 0);
-  --primary: oklch(0.99 0 0);
-  --primary-foreground: oklch(0.09 0 0);
-  --secondary: oklch(0.2 0 0);
-  --secondary-foreground: oklch(0.99 0 0);
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.2 0 0);
-  --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.2 0 0);
-  --input: oklch(0.2 0 0);
-  --ring: oklch(0.6 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  /* Theme colors */
+  --background: var(--color-cream);
+  --foreground: var(--color-black);
+  --card: var(--color-white);
+  --card-foreground: var(--color-black);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-black);
+  --primary: var(--color-purple-deep);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-yellow-lime);
+  --secondary-foreground: var(--color-black);
+  --muted: var(--color-silver);
+  --muted-foreground: var(--color-slate);
+  --accent: var(--color-purple-bright);
+  --accent-foreground: var(--color-white);
+  --destructive: var(--color-red);
+  --destructive-foreground: var(--color-white);
+  --border: var(--color-purple-dark);
+  --input: var(--color-white);
+  --ring: var(--color-purple-deep);
+  --chart-1: var(--color-purple-deep);
+  --chart-2: var(--color-teal);
+  --chart-3: var(--color-orange);
+  --chart-4: var(--color-mint);
+  --chart-5: var(--color-coral);
+  --radius: 0rem;
+  --sidebar: var(--color-white);
+  --sidebar-foreground: var(--color-black);
+  --sidebar-primary: var(--color-purple-deep);
+  --sidebar-primary-foreground: var(--color-white);
+  --sidebar-accent: var(--color-yellow-lime);
+  --sidebar-accent-foreground: var(--color-black);
+  --sidebar-border: var(--color-purple-dark);
+  --sidebar-ring: var(--color-purple-deep);
 }
 
 @theme inline {
@@ -178,24 +165,12 @@
   }
 
   .prose a {
-    @apply text-blue-600 dark:text-blue-400 hover:underline font-medium no-underline;
+    @apply text-primary hover:underline font-medium no-underline;
     text-decoration: none !important;
   }
 
   .prose a:hover {
     text-decoration: underline !important;
-  }
-
-  .dark .prose {
-    @apply text-foreground;
-  }
-
-  .dark .prose a {
-    @apply text-blue-400;
-  }
-
-  .dark .prose strong {
-    @apply text-foreground;
   }
 
   /* Add iOS-style animations */

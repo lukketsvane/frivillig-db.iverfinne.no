@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, Moon, Sun, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
+import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -14,8 +14,6 @@ import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
-
-type Theme = "light" | "dark"
 
 interface MessageWithAttachments {
   id: string
@@ -48,7 +46,6 @@ const ALL_EXAMPLE_PROMPTS = [
 ]
 
 export default function ChatPage() {
-  const [theme, setTheme] = useState<Theme>("light")
   const [userLocation, setUserLocation] = useState<{
     poststed?: string
     kommune?: string
@@ -72,17 +69,6 @@ export default function ChatPage() {
     const shuffled = [...ALL_EXAMPLE_PROMPTS].sort(() => Math.random() - 0.5)
     setExamplePrompts(shuffled.slice(0, 4))
 
-    const savedTheme = localStorage.getItem("theme") as Theme | null
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-
-    if (savedTheme) {
-      setTheme(savedTheme)
-      document.documentElement.classList.toggle("dark", savedTheme === "dark")
-    } else if (systemPrefersDark) {
-      setTheme("dark")
-      document.documentElement.classList.add("dark")
-    }
-
     const savedLocation = localStorage.getItem("userLocation")
     if (savedLocation) {
       try {
@@ -93,13 +79,6 @@ export default function ChatPage() {
       }
     }
   }, [])
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light"
-    setTheme(newTheme)
-    localStorage.setItem("theme", newTheme)
-    document.documentElement.classList.toggle("dark", newTheme === "dark")
-  }
 
   const handleLocationRequest = () => {
     if (!navigator.geolocation) {
@@ -281,10 +260,10 @@ export default function ChatPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
       <div className="fixed inset-0 -z-10 w-full h-full">
         <Shader className="w-full h-full">
-          <SolidColor color="#000000" maskType="alpha" />
+          <SolidColor color="#27085E" maskType="alpha" />
           <Pixelate scale={15} maskType="alpha" opacity={0.84}>
             <SineWave
-              color="#ffffff"
+              color="#EDF455"
               amplitude={0.87}
               frequency={10.8}
               speed={-0.5}
@@ -328,7 +307,7 @@ export default function ChatPage() {
             <Button
               variant="outline"
               size="icon-lg"
-              className={`h-11 w-11 bg-transparent active:scale-95 ${locationPermission === "granted" ? "text-green-600 dark:text-green-400" : ""}`}
+              className={`h-11 w-11 bg-transparent active:scale-95 ${locationPermission === "granted" ? "text-green-600" : ""}`}
               title={
                 locationPermission === "granted"
                   ? `Plassering: ${userLocation?.poststed || "Aktivert"}`
@@ -338,16 +317,6 @@ export default function ChatPage() {
             >
               <MapPin className="w-5 h-5" />
               <span className="sr-only">Plassering</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-lg"
-              onClick={toggleTheme}
-              className="h-11 w-11 bg-transparent active:scale-95"
-              title={theme === "light" ? "Bytt til mørk modus" : "Bytt til lys modus"}
-            >
-              {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              <span className="sr-only">Bytt tema</span>
             </Button>
           </div>
         </div>
@@ -448,7 +417,7 @@ export default function ChatPage() {
                             {message.role === "assistant" ? (
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
-                                className="prose prose-sm dark:prose-invert max-w-none"
+                                className="prose prose-sm max-w-none"
                                 components={{
                                   a: ({ node, ...props }) => (
                                     <a {...props} className="font-bold italic underline hover:opacity-80" />
