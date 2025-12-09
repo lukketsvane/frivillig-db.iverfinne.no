@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { X, Send, MessageCircle } from "lucide-react"
+import { X, Send, MessageCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/components/auth-provider"
+import { getClientUserProfile, generatePersonalizedPrompts, type UserProfile } from "@/lib/user-profile"
 
-const suggestions = [
+const DEFAULT_SUGGESTIONS = [
   "Finn organisasjoner i Oslo",
   "Hvordan bli frivillig?",
   "Organisasjoner i Bergen",
@@ -15,6 +17,7 @@ interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  thinking?: string
 }
 
 function renderMessageContent(content: string) {
@@ -45,10 +48,19 @@ function renderMessageContent(content: string) {
 }
 
 export function Chatbot() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [currentThinking, setCurrentThinking] = useState<string>("")
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS)
+  const [userLocation, setUserLocation] = useState<{
+    poststed?: string
+    kommune?: string
+    fylke?: string
+  } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -56,7 +68,7 @@ export function Chatbot() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, currentThinking])
 
   useEffect(() => {
     if (open && inputRef.current) {
@@ -65,6 +77,35 @@ export function Chatbot() {
       }, 100)
     }
   }, [open])
+
+  // Load user profile and personalized suggestions
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.id) {
+        const profile = await getClientUserProfile(user.id)
+        if (profile) {
+          setUserProfile(profile)
+          const personalized = generatePersonalizedPrompts(profile)
+          if (personalized.length > 0) {
+            setSuggestions(personalized)
+          }
+        }
+      }
+    }
+    loadProfile()
+  }, [user?.id])
+
+  // Load saved location
+  useEffect(() => {
+    const savedLocation = localStorage.getItem("userLocation")
+    if (savedLocation) {
+      try {
+        setUserLocation(JSON.parse(savedLocation))
+      } catch (error) {
+        console.error("[Slikkepinne] Error parsing saved location:", error)
+      }
+    }
+  }, [])
 
   const MAX_MESSAGE_LENGTH = 2000
 
@@ -92,6 +133,7 @@ export function Chatbot() {
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
+    setCurrentThinking("")
 
     try {
       const response = await fetch("/api/slikkepinne/chat", {
@@ -102,6 +144,7 @@ export function Chatbot() {
             role: m.role,
             content: m.content,
           })),
+          userLocation,
         }),
       })
 
@@ -109,7 +152,7 @@ export function Chatbot() {
 
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
-      
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -120,21 +163,67 @@ export function Chatbot() {
 
       if (reader) {
         let fullContent = ""
+        let buffer = ""
+
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          
+
           const chunk = decoder.decode(value, { stream: true })
-          fullContent += chunk
-          setMessages((prev) => {
-            const newMessages = [...prev]
-            const lastMsg = newMessages[newMessages.length - 1]
-            if (lastMsg && lastMsg.role === "assistant") {
-              lastMsg.content = fullContent
+          buffer += chunk
+
+          // Check for SSE data events (thinking)
+          const lines = buffer.split("\n")
+          buffer = lines.pop() || ""
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                if (data.type === "thinking") {
+                  setCurrentThinking(data.content)
+                }
+              } catch {
+                // Not JSON, treat as regular content
+                fullContent += line.slice(6)
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  const lastMsg = newMessages[newMessages.length - 1]
+                  if (lastMsg && lastMsg.role === "assistant") {
+                    lastMsg.content = fullContent
+                  }
+                  return newMessages
+                })
+              }
+            } else if (line.trim()) {
+              // Regular text chunk
+              fullContent += line
+              setMessages((prev) => {
+                const newMessages = [...prev]
+                const lastMsg = newMessages[newMessages.length - 1]
+                if (lastMsg && lastMsg.role === "assistant") {
+                  lastMsg.content = fullContent
+                }
+                return newMessages
+              })
             }
-            return newMessages
-          })
+          }
+
+          // Handle any remaining content in chunk
+          if (chunk && !chunk.includes("data:")) {
+            fullContent += chunk
+            setMessages((prev) => {
+              const newMessages = [...prev]
+              const lastMsg = newMessages[newMessages.length - 1]
+              if (lastMsg && lastMsg.role === "assistant") {
+                lastMsg.content = fullContent
+              }
+              return newMessages
+            })
+          }
         }
+
+        setCurrentThinking("")
       }
     } catch (error) {
       console.error("Chat error:", error)
@@ -144,6 +233,7 @@ export function Chatbot() {
         content: "Beklager, noe gikk galt. Prøv igjen.",
       }
       setMessages((prev) => [...prev, errorMessage])
+      setCurrentThinking("")
     } finally {
       setIsLoading(false)
     }
@@ -175,8 +265,9 @@ export function Chatbot() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed right-4 w-12 h-12 bg-white text-black rounded-full flex items-center justify-center active:scale-95 transition-transform z-[9999]"
+        className="fixed right-4 w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center active:scale-95 transition-transform shadow-lg hover:shadow-xl z-[9999]"
         style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
+        aria-label="Opne chat"
       >
         <MessageCircle className="w-5 h-5" />
       </button>
@@ -185,23 +276,34 @@ export function Chatbot() {
 
   return (
     <div
-      className="fixed right-3 left-3 sm:left-auto sm:w-[90vw] sm:max-w-sm bg-black border border-white/20 rounded-2xl flex flex-col z-[9999]"
+      className="fixed right-3 left-3 sm:left-auto sm:w-[90vw] sm:max-w-sm bg-card border border-border rounded-2xl flex flex-col z-[9999] shadow-lg"
       style={{
         bottom: "calc(5rem + env(safe-area-inset-bottom))",
         height: "min(500px, calc(100dvh - 12rem))",
       }}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <span className="text-sm font-mono text-white/80">chat</span>
-        <button onClick={() => setOpen(false)} className="p-1.5 hover:bg-white/5 rounded-full">
-          <X className="w-4 h-4 text-white/60" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div>
+          <span className="text-sm font-semibold text-foreground">slikkepinne chat</span>
+          {userProfile && userProfile.conversation_count > 1 && (
+            <p className="text-xs text-muted-foreground">
+              Tilpassa for deg
+            </p>
+          )}
+        </div>
+        <button onClick={() => setOpen(false)} className="p-1.5 hover:bg-muted rounded-full transition-colors">
+          <X className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="space-y-3">
-            <div className="text-xs text-white/40 font-mono">Spør om frivillighet i Norge</div>
+            <div className="text-xs text-muted-foreground">
+              {userProfile?.interests && userProfile.interests.length > 0
+                ? "Spørsmål tilpassa dine interesser"
+                : "Spør om frivillighet i Norge"}
+            </div>
             <div className="grid grid-cols-1 gap-2 mt-4">
               {suggestions.map((suggestion, idx) => (
                 <button
@@ -209,7 +311,7 @@ export function Chatbot() {
                   type="button"
                   onClick={() => handleSuggestionClick(suggestion)}
                   disabled={isLoading}
-                  className="text-left px-3 py-2 text-xs font-mono bg-white/5 hover:bg-white/10 active:bg-white/15 text-white/80 rounded-lg border border-white/10 transition-colors disabled:opacity-50"
+                  className="text-left px-3 py-2 text-xs bg-muted hover:bg-muted/80 active:bg-muted/60 text-foreground rounded-lg border border-border transition-colors disabled:opacity-50"
                 >
                   {suggestion}
                 </button>
@@ -220,22 +322,32 @@ export function Chatbot() {
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs font-mono ${
-                m.role === "user" ? "bg-white text-black" : "bg-white/10 text-white border border-white/10"
+              className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs ${
+                m.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground border border-border"
               }`}
             >
               <div className="whitespace-pre-wrap">{renderMessageContent(m.content)}</div>
             </div>
           </div>
         ))}
-        {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+        {currentThinking && (
           <div className="flex justify-start">
-            <div className="text-xs text-white/40 font-mono px-3 py-2">...</div>
+            <div className="max-w-[85%] px-3 py-2 rounded-2xl text-xs bg-accent/10 text-accent border border-accent/20 flex items-center gap-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span className="italic">{currentThinking}</span>
+            </div>
+          </div>
+        )}
+        {isLoading && !currentThinking && messages[messages.length - 1]?.role !== "assistant" && (
+          <div className="flex justify-start">
+            <div className="text-xs text-muted-foreground px-3 py-2">...</div>
           </div>
         )}
       </div>
 
-      <form onSubmit={onSubmit} className="p-3 border-t border-white/10 flex gap-2">
+      <form onSubmit={onSubmit} className="p-3 border-t border-border flex gap-2">
         <input
           ref={inputRef}
           type="text"
@@ -248,12 +360,12 @@ export function Chatbot() {
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck="false"
-          className="flex-1 h-10 text-sm font-mono bg-white/10 text-white border border-white/20 rounded-xl placeholder-white/40 px-4 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40"
+          className="flex-1 h-10 text-sm bg-background text-foreground border border-border rounded-xl placeholder-muted-foreground px-4 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
         />
         <button
           type="submit"
           disabled={isButtonDisabled}
-          className="h-10 w-10 p-0 bg-white text-black rounded-xl hover:bg-white/90 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-transform"
+          className="h-10 w-10 p-0 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all"
         >
           <Send className="w-4 h-4" />
         </button>
