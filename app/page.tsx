@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
+import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText, Bot, Check } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -16,11 +16,10 @@ import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 import { UserMenu } from "@/components/user-menu"
 
-interface MessageWithAttachments {
-  id: string
-  role: string
-  content: string
-  attachments?: { name: string; type: string }[]
+interface AgentProgress {
+  step: string
+  progress: number
+  message: string
 }
 
 const ALL_EXAMPLE_PROMPTS = [
@@ -46,6 +45,15 @@ const ALL_EXAMPLE_PROMPTS = [
   "Vil arbeide med demokrati og menneskerettar internasjonalt frå Porsgrunn",
 ]
 
+const AGENT_STEPS = [
+  { id: "reading", label: "Les vedlegg", icon: "📄" },
+  { id: "analyzing", label: "Analyserer profil", icon: "🔍" },
+  { id: "extracting", label: "Finn interesser", icon: "💡" },
+  { id: "searching", label: "Søkjer organisasjonar", icon: "🏢" },
+  { id: "recommending", label: "Lagar anbefalingar", icon: "✨" },
+  { id: "complete", label: "Ferdig", icon: "✅" },
+]
+
 export default function ChatPage() {
   const [userLocation, setUserLocation] = useState<{
     poststed?: string
@@ -61,6 +69,11 @@ export default function ChatPage() {
   const [attachments, setAttachments] = useState<File[]>([])
   const [isAgentMode, setIsAgentMode] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [agentProgress, setAgentProgress] = useState<AgentProgress | null>(null)
+  const [agentResult, setAgentResult] = useState<{
+    recommendation: string
+    organizations: OrganizationCardData[]
+  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -142,7 +155,83 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, agentProgress, agentResult])
+
+  const handleAgentAnalysis = async (files: File[], message: string) => {
+    setIsProcessing(true)
+    setAgentProgress({ step: "reading", progress: 0, message: "Startar analyse..." })
+    setAgentResult(null)
+
+    const uploadFormData = new FormData()
+    files.forEach((file) => {
+      uploadFormData.append("files", file)
+    })
+    uploadFormData.append("message", message)
+    if (userLocation) {
+      uploadFormData.append("location", JSON.stringify(userLocation))
+    }
+
+    try {
+      const response = await fetch("/api/analyze-profile", {
+        method: "POST",
+        headers: {
+          Accept: "text/event-stream",
+        },
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze")
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error("No response body")
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.type === "progress") {
+                setAgentProgress({
+                  step: data.step,
+                  progress: data.progress,
+                  message: data.message,
+                })
+              } else if (data.type === "result") {
+                setAgentResult({
+                  recommendation: data.recommendation,
+                  organizations: data.organizations,
+                })
+                setAgentProgress({ step: "complete", progress: 100, message: "Ferdig!" })
+              } else if (data.type === "error") {
+                throw new Error(data.error)
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Agent analysis error:", error)
+      setAgentProgress({ step: "error", progress: 0, message: "Noko gjekk gale. Prøv igjen." })
+    } finally {
+      setIsProcessing(false)
+      setAttachments([])
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -155,58 +244,14 @@ export default function ChatPage() {
     const message = formData.get("message") as string
 
     if (message.trim() || attachments.length > 0) {
-      setIsProcessing(true)
-
       if (attachments.length > 0) {
         setIsAgentMode(true)
-
-        const uploadFormData = new FormData()
-        attachments.forEach((file) => {
-          uploadFormData.append("files", file)
-        })
-        uploadFormData.append("message", message)
-        if (userLocation) {
-          uploadFormData.append("location", JSON.stringify(userLocation))
-        }
-
-        const attachmentInfo = attachments.map((file) => ({
-          name: file.name,
-          type: file.type,
-        }))
-
-        try {
-          const response = await fetch("/api/analyze-profile", {
-            method: "POST",
-            body: uploadFormData,
-          })
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            throw new Error(errorData.error || "Failed to analyze attachments")
-          }
-
-          const data = await response.json()
-
-          const combinedMessage = `${data.recommendation}\n\n**Profil:**\n${data.profile}`
-          sendMessage({
-            text: combinedMessage,
-            data: {
-              organizations: data.organizations,
-              attachments: attachmentInfo,
-            },
-          })
-
-          setAttachments([])
-          if (formRef.current) {
-            formRef.current.reset()
-          }
-        } catch (error) {
-          console.error("[v0] Error uploading attachments:", error)
-          alert("Kunne ikkje laste opp vedlegg. Prøv igjen.")
-        } finally {
-          setIsProcessing(false)
+        await handleAgentAnalysis(attachments, message)
+        if (formRef.current) {
+          formRef.current.reset()
         }
       } else {
+        setIsProcessing(true)
         try {
           await sendMessage({ text: message })
           if (formRef.current) {
@@ -255,10 +300,17 @@ export default function ChatPage() {
 
   const toggleAgentMode = () => {
     setIsAgentMode((prev) => !prev)
+    setAgentProgress(null)
+    setAgentResult(null)
+  }
+
+  const getCurrentStepIndex = () => {
+    if (!agentProgress) return -1
+    return AGENT_STEPS.findIndex((s) => s.id === agentProgress.step)
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
+    <div className="fixed inset-0 flex flex-col items-center justify-center p-3 gap-3">
       <div className="fixed inset-0 -z-10 w-full h-full">
         <Shader className="w-full h-full">
           <SolidColor color="#27085E" maskType="alpha" />
@@ -278,14 +330,15 @@ export default function ChatPage() {
         </Shader>
       </div>
 
-      <Card className="w-full max-w-4xl h-[600px] flex flex-col shadow-lg overflow-hidden">
+      <Card className="w-full max-w-4xl h-[600px] max-h-[85vh] flex flex-col shadow-lg overflow-hidden">
         <div className="border-b px-6 py-4 flex items-center justify-between shrink-0">
           <div>
             <button
               onClick={toggleAgentMode}
-              className="text-2xl font-semibold hover:opacity-70 transition-opacity active:scale-95"
+              className="text-2xl font-semibold hover:opacity-70 transition-opacity active:scale-95 flex items-center gap-2"
               title="Bytt mellom normal og agent-modus"
             >
+              {isAgentMode && <Bot className="w-6 h-6 text-accent" />}
               {isAgentMode ? "agent-modus" : "frivillig-db"}
             </button>
           </div>
@@ -324,92 +377,158 @@ export default function ChatPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 min-h-0">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-8">
-              {isAgentMode ? (
-                <div className="text-center max-w-md space-y-4">
-                  <div className="text-lg font-medium">Last opp vedlegg for personaliserte forslag</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Vi analyserer dokumenta dine og gir tilpassa organisasjonsanbefalingar basert på profilen din.
-                  </p>
+          {/* Agent Mode Progress UI */}
+          {isAgentMode && (agentProgress || agentResult) && (
+            <div className="space-y-6 mb-6">
+              {/* Progress Steps */}
+              {agentProgress && agentProgress.step !== "complete" && (
+                <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-accent animate-pulse" />
+                    <span className="font-medium">Agent analyserer...</span>
+                  </div>
+
+                  {/* Step indicators */}
+                  <div className="space-y-2">
+                    {AGENT_STEPS.map((step, index) => {
+                      const currentIndex = getCurrentStepIndex()
+                      const isComplete = index < currentIndex
+                      const isCurrent = index === currentIndex
+                      const isPending = index > currentIndex
+
+                      return (
+                        <div
+                          key={step.id}
+                          className={`flex items-center gap-3 p-2 rounded transition-all ${
+                            isCurrent ? "bg-accent/10" : ""
+                          }`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                              isComplete
+                                ? "bg-green-500 text-white"
+                                : isCurrent
+                                  ? "bg-accent text-white animate-pulse"
+                                  : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {isComplete ? <Check className="w-4 h-4" /> : step.icon}
+                          </div>
+                          <span
+                            className={`text-sm ${
+                              isComplete
+                                ? "text-green-600 line-through"
+                                : isCurrent
+                                  ? "text-foreground font-medium"
+                                  : "text-muted-foreground"
+                            }`}
+                          >
+                            {step.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent transition-all duration-500 ease-out"
+                      style={{ width: `${agentProgress.progress}%` }}
+                    />
+                  </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-                  {examplePrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleExampleClick(prompt)}
-                      className="text-left p-4 min-h-[44px] border border-border hover:border-foreground/20 hover:bg-muted/50 active:scale-95 transition-all text-sm text-foreground leading-relaxed"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+              )}
+
+              {/* Agent Result */}
+              {agentResult && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bot className="w-5 h-5 text-accent" />
+                      <span className="font-medium text-accent">Anbefaling</span>
+                    </div>
+                    <p className="text-foreground leading-relaxed">{agentResult.recommendation}</p>
+                  </div>
+
+                  {agentResult.organizations.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-medium text-foreground">Tilpassa organisasjonar for deg:</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {agentResult.organizations.map((org) => (
+                          <OrganizationCard key={org.id} organization={org} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+          )}
+
+          {/* Normal Chat Mode */}
+          {!isAgentMode && messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+                {examplePrompts.map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleExampleClick(prompt)}
+                    className="text-left p-4 min-h-[44px] border border-border hover:border-foreground/20 hover:bg-muted/50 active:scale-95 transition-all text-sm text-foreground leading-relaxed"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : isAgentMode && !agentProgress && !agentResult ? (
+            <div className="flex flex-col items-center justify-center h-full gap-8">
+              <div className="text-center max-w-md space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-accent/10 flex items-center justify-center">
+                  <Bot className="w-8 h-8 text-accent" />
+                </div>
+                <div className="text-lg font-medium">Last opp CV eller profil</div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Last opp CV, profilskildring eller andre dokument, så analyserer eg dei og finn dei beste
+                  organisasjonane for deg.
+                </p>
+                <Button onClick={handleFileSelect} className="gap-2">
+                  <Paperclip className="w-4 h-4" />
+                  Vel fil
+                </Button>
+              </div>
+            </div>
           ) : (
-            <div className="space-y-4">
-              {messages.map((message) => {
-                const textContent = message.parts
-                  .filter((part) => part.type === "text")
-                  .map((part) => {
-                    if ("text" in part) {
-                      return part.text
-                    }
-                    return ""
-                  })
-                  .join("")
+            !isAgentMode && (
+              <div className="space-y-4">
+                {messages.map((message) => {
+                  const textContent = message.parts
+                    .filter((part) => part.type === "text")
+                    .map((part) => {
+                      if ("text" in part) {
+                        return part.text
+                      }
+                      return ""
+                    })
+                    .join("")
 
-                let organizations: OrganizationCardData[] = []
-                let messageAttachments: { name: string; type: string }[] = []
-                try {
-                  if (message.data && typeof message.data === "object") {
-                    if ("organizations" in message.data) {
-                      const orgs = message.data.organizations
-                      if (Array.isArray(orgs)) {
-                        organizations = orgs
+                  let organizations: OrganizationCardData[] = []
+                  try {
+                    if (message.data && typeof message.data === "object") {
+                      if ("organizations" in message.data) {
+                        const orgs = message.data.organizations
+                        if (Array.isArray(orgs)) {
+                          organizations = orgs
+                        }
                       }
                     }
-                    if ("attachments" in message.data) {
-                      const atts = message.data.attachments
-                      if (Array.isArray(atts)) {
-                        messageAttachments = atts
-                      }
-                    }
+                  } catch (error) {
+                    console.error("[v0] Error parsing message data:", error)
                   }
-                } catch (error) {
-                  console.error("[v0] Error parsing message data:", error)
-                }
 
-                return (
-                  <div key={message.id} className="space-y-4">
-                    {messageAttachments.length > 0 && (
-                      <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className="flex flex-wrap gap-2 max-w-[75%]">
-                          {messageAttachments.map((att, idx) => (
-                            <div
-                              key={idx}
-                              className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                                message.role === "user"
-                                  ? "bg-foreground text-background"
-                                  : "bg-muted text-foreground border border-border"
-                              }`}
-                            >
-                              <FileText className="w-4 h-4 shrink-0" />
-                              <span className="truncate max-w-[200px]">{att.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {textContent &&
-                      textContent.trim() &&
-                      !(
-                        message.role === "assistant" &&
-                        messageAttachments.length > 0 &&
-                        textContent.includes("**Profil:**")
-                      ) && (
+                  return (
+                    <div key={message.id} className="space-y-4">
+                      {textContent && textContent.trim() && (
                         <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                           <div
                             className={`relative max-w-[75%] px-4 py-3 text-base leading-relaxed ${
@@ -437,31 +556,32 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                    {message.role === "assistant" && organizations.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {organizations.map((org) => (
-                          <OrganizationCard key={org.id} organization={org} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                      {message.role === "assistant" && organizations.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {organizations.map((org) => (
+                            <OrganizationCard key={org.id} organization={org} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
 
-              {status === "in_progress" && (
-                <div className="flex justify-start">
-                  <div className="relative max-w-[75%] px-4 py-3 bg-muted">
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" />
+                {status === "in_progress" && (
+                  <div className="flex justify-start">
+                    <div className="relative max-w-[75%] px-4 py-3 bg-muted">
+                      <div className="flex gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div ref={messagesEndRef} />
-            </div>
+                <div ref={messagesEndRef} />
+              </div>
+            )
           )}
         </div>
 
@@ -501,7 +621,7 @@ export default function ChatPage() {
               size="icon-lg"
               onClick={handleFileSelect}
               disabled={isProcessing || status === "in_progress"}
-              className="shrink-0 h-11 w-11 bg-transparent active:scale-95"
+              className={`shrink-0 h-11 w-11 bg-transparent active:scale-95 ${isAgentMode ? "border-accent text-accent" : ""}`}
               title="Legg til vedlegg"
             >
               <Paperclip className="w-5 h-5" />
@@ -511,7 +631,7 @@ export default function ChatPage() {
             <Input
               ref={inputRef}
               name="message"
-              placeholder="Skriv ei melding..."
+              placeholder={isAgentMode ? "Skriv om deg sjølv (valfritt)..." : "Skriv ei melding..."}
               disabled={isProcessing || status === "in_progress"}
               className="flex-1 h-11"
               autoComplete="off"
@@ -529,10 +649,16 @@ export default function ChatPage() {
             </Button>
           </form>
           <div className="mt-2 flex gap-3 justify-center">
-            <Link href="/slikkepinne" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+            <Link
+              href="/slikkepinne"
+              className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
               slikkepinne
             </Link>
-            <Link href="/om-tenesta" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+            <Link
+              href="/om-tenesta"
+              className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
               om tenesta
             </Link>
           </div>
