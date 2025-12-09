@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft } from "lucide-react"
+import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -11,7 +12,26 @@ export const metadata: Metadata = {
 
 export default function OmTenestaPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 bg-gradient-to-b from-purple-900 to-purple-700">
+    <div className="min-h-screen flex flex-col items-center justify-center p-3 gap-3 relative">
+      <div className="fixed inset-0 -z-10 w-full h-full">
+        <Shader className="w-full h-full">
+          <SolidColor color="#27085E" maskType="alpha" />
+          <Pixelate scale={15} maskType="alpha" opacity={0.84}>
+            <SineWave
+              color="#EDF455"
+              amplitude={0.87}
+              frequency={10.8}
+              speed={-0.5}
+              angle={6}
+              position={{ x: 0.5, y: 0.5 }}
+              thickness={0.22}
+              softness={0.44}
+              maskType="alpha"
+            />
+          </Pixelate>
+        </Shader>
+      </div>
+
       <Card className="w-full max-w-3xl p-8 shadow-lg">
         <div className="mb-6">
           <Link
