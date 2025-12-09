@@ -66,13 +66,27 @@ export function Chatbot() {
     }
   }, [open])
 
+  const MAX_MESSAGE_LENGTH = 2000
+
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return
+    const trimmedText = text.trim()
+    if (!trimmedText || isLoading) return
+
+    // Validate message length
+    if (trimmedText.length > MAX_MESSAGE_LENGTH) {
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `Meldinga er for lang. Maks ${MAX_MESSAGE_LENGTH} teikn.`,
+      }
+      setMessages((prev) => [...prev, errorMessage])
+      return
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: text.trim(),
+      content: trimmedText,
     }
 
     setMessages((prev) => [...prev, userMessage])
