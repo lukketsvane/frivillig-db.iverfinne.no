@@ -4,77 +4,100 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.09 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.09 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.09 0 0);
-  --primary: oklch(0.28 0 0);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.09 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.09 0 0);
+  /* Frivillig brand colors */
+  --purple-header-app: #7F4ACF;
+  --purple-header-web: #542F76;
+  --purple-qr: #6C38C5;
+  --purple-progress-bg: #A68ED9;
+  --bg-green-light: #D1F2B8;
+  --bg-cream: #FDF8E1;
+  --bg-yellow-intense: #F8F295;
+  --bg-white: #FFFFFF;
+  --btn-green-olive: #6B8E23;
+  --btn-orange-peach: #FBC085;
+  --accent-orange: #FF7F50;
+  --text-standard: #212529;
+  --text-blue-deep: #363062;
+
+  /* Dark mode brand colors */
+  --bg-purple-darkest: #1a1625;
+  --bg-purple-dark: #2d2640;
+  --bg-purple-medium: #3d3455;
+  --bg-green-sage: #8FBC8F;
+
+  /* Light mode - cream/yellow tones */
+  --background: var(--bg-cream);
+  --foreground: var(--text-standard);
+  --card: var(--bg-white);
+  --card-foreground: var(--text-standard);
+  --popover: var(--bg-white);
+  --popover-foreground: var(--text-standard);
+  --primary: var(--purple-header-app);
+  --primary-foreground: var(--bg-white);
+  --secondary: var(--bg-green-light);
+  --secondary-foreground: var(--text-standard);
+  --muted: var(--bg-yellow-intense);
+  --muted-foreground: var(--text-blue-deep);
+  --accent: var(--purple-progress-bg);
+  --accent-foreground: var(--text-standard);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.28 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --destructive-foreground: var(--bg-white);
+  --border: var(--purple-progress-bg);
+  --input: var(--bg-white);
+  --ring: var(--purple-header-app);
+  --chart-1: var(--purple-header-app);
+  --chart-2: var(--btn-green-olive);
+  --chart-3: var(--purple-header-web);
+  --chart-4: var(--btn-orange-peach);
+  --chart-5: var(--accent-orange);
   --radius: 0rem; /* removed border radius */
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--bg-white);
+  --sidebar-foreground: var(--text-standard);
+  --sidebar-primary: var(--purple-header-app);
+  --sidebar-primary-foreground: var(--bg-white);
+  --sidebar-accent: var(--bg-green-light);
+  --sidebar-accent-foreground: var(--text-standard);
+  --sidebar-border: var(--purple-progress-bg);
+  --sidebar-ring: var(--purple-header-app);
 
   /* Add smooth transition for theme switching */
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .dark {
-  --background: oklch(0.09 0 0);
-  --foreground: oklch(0.99 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.99 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.99 0 0);
-  --primary: oklch(0.99 0 0);
-  --primary-foreground: oklch(0.09 0 0);
-  --secondary: oklch(0.2 0 0);
-  --secondary-foreground: oklch(0.99 0 0);
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.2 0 0);
-  --accent-foreground: oklch(0.99 0 0);
+  /* Dark mode - deeper purple/dark tones with brand accents */
+  --background: var(--bg-purple-darkest);
+  --foreground: var(--bg-cream);
+  --card: var(--bg-purple-dark);
+  --card-foreground: var(--bg-cream);
+  --popover: var(--bg-purple-dark);
+  --popover-foreground: var(--bg-cream);
+  --primary: var(--purple-progress-bg);
+  --primary-foreground: var(--bg-purple-darkest);
+  --secondary: var(--bg-purple-medium);
+  --secondary-foreground: var(--bg-cream);
+  --muted: var(--bg-purple-medium);
+  --muted-foreground: var(--purple-progress-bg);
+  --accent: var(--purple-header-web);
+  --accent-foreground: var(--bg-cream);
   --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.2 0 0);
-  --input: oklch(0.2 0 0);
-  --ring: oklch(0.6 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --destructive-foreground: var(--bg-cream);
+  --border: var(--purple-header-web);
+  --input: var(--bg-purple-medium);
+  --ring: var(--purple-progress-bg);
+  --chart-1: var(--purple-progress-bg);
+  --chart-2: var(--bg-green-sage);
+  --chart-3: var(--purple-header-app);
+  --chart-4: var(--btn-orange-peach);
+  --chart-5: var(--accent-orange);
+  --sidebar: var(--bg-purple-dark);
+  --sidebar-foreground: var(--bg-cream);
+  --sidebar-primary: var(--purple-progress-bg);
+  --sidebar-primary-foreground: var(--bg-cream);
+  --sidebar-accent: var(--bg-purple-medium);
+  --sidebar-accent-foreground: var(--bg-cream);
+  --sidebar-border: var(--purple-header-web);
+  --sidebar-ring: var(--purple-progress-bg);
 }
 
 @theme inline {
@@ -178,7 +201,7 @@
   }
 
   .prose a {
-    @apply text-blue-600 dark:text-blue-400 hover:underline font-medium no-underline;
+    @apply text-primary hover:underline font-medium no-underline;
     text-decoration: none !important;
   }
 
@@ -191,7 +214,7 @@
   }
 
   .dark .prose a {
-    @apply text-blue-400;
+    @apply text-primary;
   }
 
   .dark .prose strong {
