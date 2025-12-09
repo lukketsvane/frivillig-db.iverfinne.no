@@ -16,7 +16,12 @@ import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 import { UserMenu } from "@/components/user-menu"
 import { useAuth } from "@/components/auth-provider"
-import { getClientUserProfile, generatePersonalizedPrompts, type UserProfile } from "@/lib/user-profile"
+import {
+  getClientUserProfile,
+  generatePersonalizedPrompts,
+  updateUserProfileLocation,
+  type UserProfile,
+} from "@/lib/user-profile"
 
 interface AgentProgress {
   step: string
@@ -70,10 +75,40 @@ export default function ChatPage() {
     recommendation: string
     organizations: OrganizationCardData[]
   } | null>(null)
+  const [savingProfileLocation, setSavingProfileLocation] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const locationSaveKeyRef = useRef<string | null>(null)
+
+  const buildExamplePrompts = useCallback(
+    (profile: UserProfile | null, location?: { poststed?: string; kommune?: string; fylke?: string }) => {
+      const prompts: string[] = []
+
+      const resolvedLocation = location?.kommune || location?.poststed || profile?.location_kommune || profile?.location_fylke
+
+      if (!profile?.age_range) {
+        prompts.push("Eg er 34 år. Kva frivilligarbeid passar meg?")
+      }
+
+      if (!profile?.location_kommune && resolvedLocation) {
+        prompts.push(`Kva kan eg bidra med i ${resolvedLocation}?`)
+      }
+
+      const personalized = generatePersonalizedPrompts(profile)
+      if (personalized.length > 0) {
+        prompts.push(...personalized)
+      }
+
+      if (prompts.length < 4) {
+        prompts.push(...DEFAULT_PROMPTS)
+      }
+
+      return [...new Set(prompts)].slice(0, 4)
+    },
+    [],
+  )
 
   // Load user profile and generate personalized prompts
   useEffect(() => {
@@ -82,10 +117,6 @@ export default function ChatPage() {
         const profile = await getClientUserProfile(user.id)
         if (profile) {
           setUserProfile(profile)
-          const personalized = generatePersonalizedPrompts(profile)
-          if (personalized.length > 0) {
-            setExamplePrompts(personalized)
-          }
         }
       }
     }
@@ -104,6 +135,28 @@ export default function ChatPage() {
       }
     }
   }, [])
+
+  // Persist discovered location to the profile as soon as vi have it
+  useEffect(() => {
+    const syncLocation = async () => {
+      if (!user?.id || !userLocation) return
+
+      const key = `${user.id}-${userLocation.postnummer || userLocation.kommune || userLocation.latitude || ""}`
+      if (locationSaveKeyRef.current === key) return
+
+      locationSaveKeyRef.current = key
+      setSavingProfileLocation(true)
+      await updateUserProfileLocation(user.id, userLocation)
+      setSavingProfileLocation(false)
+    }
+
+    syncLocation()
+  }, [user?.id, userLocation])
+
+  // Keep example prompts tailored to what we know right now
+  useEffect(() => {
+    setExamplePrompts(buildExamplePrompts(userProfile, userLocation || undefined))
+  }, [userProfile, userLocation, buildExamplePrompts])
 
   const handleLocationRequest = useCallback(() => {
     if (!navigator.geolocation) {
@@ -151,6 +204,9 @@ export default function ChatPage() {
     body: { userLocation },
   })
 
+  const resolvedLocationName =
+    userLocation?.kommune || userLocation?.poststed || userProfile?.location_kommune || userProfile?.location_fylke
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
@@ -162,7 +218,7 @@ export default function ChatPage() {
   const handleAgentAnalysis = async (files: File[], message: string) => {
     setIsProcessing(true)
     setAgentProgress({ step: "start", progress: 0, message: "Startar..." })
-    setAgentThinking(null)
+    setAgentThinking({ thought: "Startar analyse og set opp Gemini 3 Pro...", timestamp: Date.now() })
     setAgentResult(null)
 
     const uploadFormData = new FormData()
@@ -365,10 +421,12 @@ export default function ChatPage() {
                   </div>
 
                   {/* Thinking bubble - shows what AI is doing right now */}
-                  {agentThinking && (
+                  {(agentThinking || isProcessing) && (
                     <div className="flex items-center gap-2 text-sm text-accent animate-pulse">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="italic">{agentThinking.thought}</span>
+                      <span className="italic">
+                        {agentThinking?.thought || "Agenten tenkjer høgt frå første sekund..."}
+                      </span>
                     </div>
                   )}
 
@@ -446,11 +504,36 @@ export default function ChatPage() {
           {/* Chat Mode */}
           {!isAgentMode && messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8">
-              {userProfile && userProfile.conversation_count > 1 && (
-                <div className="text-center">
+              {user && (
+                <div className="flex flex-col items-center gap-3 text-center">
                   <p className="text-sm text-muted-foreground">
-                    Velkomen tilbake! Forslag basert på det eg har lært om deg:
+                    Bygg kunnskapsprofilen raskt: del alder og stad, så tilpassar eg straks.
                   </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-background/40"
+                      onClick={() => handleExampleClick("Eg er 34 år og vil bidra som frivillig.")}
+                    >
+                      Del alder
+                    </Button>
+                    {resolvedLocationName ? (
+                      <span className="text-xs px-3 py-1 rounded-full bg-accent/10 text-accent border border-accent/30">
+                        Brukar {resolvedLocationName} som stad
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-background/40"
+                        onClick={handleLocationRequest}
+                        disabled={savingProfileLocation}
+                      >
+                        {savingProfileLocation ? "Lagrar stad..." : "Del posisjon"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">

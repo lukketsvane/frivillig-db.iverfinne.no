@@ -103,7 +103,7 @@ Skriv på nynorsk, ver kort og konkret (maks 150 ord).`
           sendThinking(controller, "Gemini analyserer...")
 
           const analysisResponse = await generateText({
-            model: google("gemini-2.0-flash"),
+            model: google("gemini-3.0-pro"),
             prompt: analysisPrompt,
           })
 
@@ -122,7 +122,7 @@ ${profileAnalysis}
 Returner BERRE nøkkelord (maksimum 8), separert med komma. Ingen forklaringar.`
 
           const keywordResponse = await generateText({
-            model: google("gemini-2.0-flash"),
+            model: google("gemini-3.0-pro"),
             prompt: keywordPrompt,
           })
 
@@ -175,7 +175,7 @@ Skriv ein kort, personleg anbefaling (2-3 setningar) som:
 Skriv på nynorsk og ver positiv men kortfatta.`
 
           const recommendationResponse = await generateText({
-            model: google("gemini-2.0-flash"),
+            model: google("gemini-3.0-pro"),
             prompt: recommendationPrompt,
           })
 
