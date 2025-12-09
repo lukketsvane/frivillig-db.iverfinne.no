@@ -232,4 +232,37 @@
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
+
+  /* Safe area padding utilities */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Prevent iOS keyboard from pushing content */
+  @supports (-webkit-touch-callout: none) {
+    .fixed {
+      /* Use visual viewport for better iOS keyboard handling */
+      height: 100%;
+      height: -webkit-fill-available;
+    }
+  }
+
+  /* Mobile input focus - prevent zoom */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Ensure fixed elements don't jump with keyboard */
+  @media (max-width: 768px) {
+    body {
+      /* Prevent body scroll when keyboard opens */
+      overscroll-behavior: none;
+    }
+  }
 }
