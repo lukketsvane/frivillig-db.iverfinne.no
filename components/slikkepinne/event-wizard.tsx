@@ -261,23 +261,30 @@ export function EventWizard() {
   const timeSlots = Object.entries(TIME_SLOT_INFO) as [TimeSlot, typeof TIME_SLOT_INFO[TimeSlot]][]
 
   return (
-    <div className="h-full flex flex-col max-w-md mx-auto">
-      {/* Progress header - fixed at top */}
-      <div className="shrink-0 rounded-t-lg bg-white/10 backdrop-blur-sm p-4 text-center border border-white/20 border-b-0">
-        <h2 className="text-lg font-semibold text-white">Ny aktivitet</h2>
-        <p className="text-sm text-white/70">Steg {step} av 4</p>
-        <div className="mt-3 flex gap-1">
+    <div className="h-full flex flex-col">
+      {/* Progress header - matches main page card header */}
+      <div className="shrink-0 px-4 py-3 border-b bg-muted/30">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">Steg {step} av 4</span>
+          <span className="text-xs text-muted-foreground">
+            {step === 1 && "Aktivitet"}
+            {step === 2 && "Tid"}
+            {step === 3 && "Stad"}
+            {step === 4 && "Organisasjon"}
+          </span>
+        </div>
+        <div className="flex gap-1">
           {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-secondary" : "bg-white/30"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-accent" : "bg-border"}`}
             />
           ))}
         </div>
       </div>
 
       {/* Scrollable content area */}
-      <div className="flex-1 min-h-0 overflow-y-auto bg-white/95 backdrop-blur-sm border-x border-white/20">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-4">
           {step === 1 && (
             <div className="space-y-4">
@@ -506,14 +513,14 @@ export function EventWizard() {
         </div>
       </div>
 
-      {/* Navigation - fixed at bottom */}
-      <div className="shrink-0 p-4 bg-white/95 backdrop-blur-sm border border-white/20 border-t-0 rounded-b-lg">
+      {/* Navigation - fixed at bottom - matches main page input area */}
+      <div className="shrink-0 p-4 border-t">
         <div className="flex gap-3">
           {step > 1 && (
             <Button
               variant="outline"
               onClick={handleBack}
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 h-11"
               disabled={isSaving}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -524,7 +531,7 @@ export function EventWizard() {
             <Button
               onClick={handleNext}
               disabled={!canProceed()}
-              className="flex-1 gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              className="flex-1 gap-2 h-11"
             >
               Neste
               <ArrowRight className="h-4 w-4" />
@@ -533,7 +540,7 @@ export function EventWizard() {
             <Button
               onClick={handleSubmit}
               disabled={!canProceed() || isSaving}
-              className="flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              className="flex-1 h-11"
             >
               {isSaving ? (
                 <>
