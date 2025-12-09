@@ -528,6 +528,14 @@ export default function ChatPage() {
               <span className="sr-only">Send</span>
             </Button>
           </form>
+          <div className="mt-2 flex gap-3 justify-center">
+            <Link href="/slikkepinne" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              slikkepinne
+            </Link>
+            <Link href="/om-tenesta" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              om tenesta
+            </Link>
+          </div>
         </div>
       </Card>
     </div>
