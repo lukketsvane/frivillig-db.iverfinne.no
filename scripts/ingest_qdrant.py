@@ -20,6 +20,7 @@ Requirements:
 import json
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ try:
     from qdrant_client import QdrantClient
     from qdrant_client.models import (
         Distance,
+        FieldCondition,
+        Filter,
+        MatchValue,
         PointStruct,
         VectorParams,
     )
@@ -160,15 +164,18 @@ def load_json_files(json_store_path: Path) -> list[dict[str, Any]]:
     return organizations
 
 
-def setup_qdrant_collection(client: QdrantClient) -> None:
-    """Create or recreate the Qdrant collection."""
+def setup_qdrant_collection(client: QdrantClient) -> bool:
+    """
+    Create the Qdrant collection if it doesn't exist.
+    Returns True if collection already existed, False if newly created.
+    """
     # Check if collection exists
     collections = client.get_collections().collections
     collection_names = [c.name for c in collections]
     
     if COLLECTION_NAME in collection_names:
-        print(f"Collection '{COLLECTION_NAME}' exists. Recreating...")
-        client.delete_collection(COLLECTION_NAME)
+        print(f"Collection '{COLLECTION_NAME}' already exists. Will skip existing records.")
+        return True
     
     # Create collection with vector configuration
     client.create_collection(
@@ -179,6 +186,33 @@ def setup_qdrant_collection(client: QdrantClient) -> None:
         ),
     )
     print(f"Created collection '{COLLECTION_NAME}' with {EMBEDDING_DIMENSION}-dimensional vectors")
+    return False
+
+
+def check_org_exists(client: QdrantClient, org_id: str) -> bool:
+    """
+    Check if an organization already exists in Qdrant by its org_id.
+    Uses scroll to find points with matching payload.id field.
+    """
+    try:
+        # Search for points with matching org_id in payload
+        results, _ = client.scroll(
+            collection_name=COLLECTION_NAME,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="id",
+                        match=MatchValue(value=org_id),
+                    )
+                ]
+            ),
+            limit=1,
+        )
+        return len(results) > 0
+    except Exception as e:
+        # If there's an error, assume it doesn't exist to be safe
+        print(f"Warning: Error checking existence for {org_id}: {e}")
+        return False
 
 
 def extract_fylke_from_kommune(kommune: str | None) -> str | None:
@@ -217,7 +251,7 @@ def extract_fylke_from_kommune(kommune: str | None) -> str | None:
     return fylke_mapping.get(kommune_upper)
 
 
-def create_point(org: dict[str, Any], embedding: list[float], point_id: int) -> PointStruct:
+def create_point(org: dict[str, Any], embedding: list[float]) -> PointStruct:
     """Create a Qdrant point from organization data."""
     # Extract kommune from address
     kommune = org.get("forretningsadresse_kommune")
@@ -246,6 +280,9 @@ def create_point(org: dict[str, Any], embedding: list[float], point_id: int) -> 
         "naeringskode": org.get("naeringskode1_beskrivelse", ""),
     }
     
+    # Use UUID for point_id to avoid collisions when adding to existing collection
+    point_id = str(uuid.uuid4())
+    
     return PointStruct(
         id=point_id,
         vector=embedding,
@@ -268,8 +305,8 @@ def main():
     client = get_qdrant_client()
     print("✓ Connected to Qdrant")
     
-    # Setup collection
-    setup_qdrant_collection(client)
+    # Setup collection (returns True if collection already existed)
+    collection_existed = setup_qdrant_collection(client)
     
     # Load JSON files
     script_dir = Path(__file__).parent.parent
@@ -288,14 +325,37 @@ def main():
     
     print(f"✓ {len(valid_orgs)} organizations have valid data for embedding")
     
-    # Process in batches
+    # Process organizations, skipping existing ones if collection already existed
     total_points = 0
+    skipped_count = 0
     batch_num = 0
     
     print(f"\nProcessing {len(valid_orgs)} organizations in batches of {BATCH_SIZE}...")
     
-    for i in range(0, len(valid_orgs), BATCH_SIZE):
-        batch = valid_orgs[i:i + BATCH_SIZE]
+    # Collect organizations that need to be processed
+    orgs_to_process = []
+    
+    if collection_existed:
+        print("Checking for existing organizations...")
+        for org, embedding_text in valid_orgs:
+            org_id = org.get("id", "")
+            if check_org_exists(client, org_id):
+                print(f"Skipping {org_id} - already exists")
+                skipped_count += 1
+            else:
+                orgs_to_process.append((org, embedding_text))
+        print(f"✓ Skipped {skipped_count} existing organizations")
+        print(f"✓ {len(orgs_to_process)} new organizations to process")
+    else:
+        orgs_to_process = valid_orgs
+    
+    if not orgs_to_process:
+        print("\nNo new organizations to process. All up to date!")
+        return
+    
+    # Process new organizations in batches
+    for i in range(0, len(orgs_to_process), BATCH_SIZE):
+        batch = orgs_to_process[i:i + BATCH_SIZE]
         batch_num += 1
         
         print(f"\nBatch {batch_num}: Processing {len(batch)} organizations...")
@@ -304,11 +364,10 @@ def main():
         texts = [item[1] for item in batch]
         embeddings = get_embeddings_batch(texts)
         
-        # Create points
+        # Create points with UUID-based IDs to avoid collisions
         points = []
-        for j, ((org, _), embedding) in enumerate(zip(batch, embeddings)):
-            point_id = i + j
-            point = create_point(org, embedding, point_id)
+        for (org, _), embedding in zip(batch, embeddings):
+            point = create_point(org, embedding)
             points.append(point)
         
         # Upsert batch
@@ -318,11 +377,12 @@ def main():
         )
         
         total_points += len(points)
-        print(f"✓ Batch {batch_num} complete. Total points: {total_points}/{len(valid_orgs)}")
+        print(f"✓ Batch {batch_num} complete. Total new points: {total_points}/{len(orgs_to_process)}")
     
     print("\n" + "=" * 60)
     print(f"Ingestion complete!")
-    print(f"Total organizations processed: {total_points}")
+    print(f"Organizations skipped (already existed): {skipped_count}")
+    print(f"New organizations processed: {total_points}")
     print(f"Collection: {COLLECTION_NAME}")
     print("=" * 60)
 
