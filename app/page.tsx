@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
+import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText, Candy, Info } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -292,6 +292,30 @@ export default function ChatPage() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="h-11 bg-transparent active:scale-95"
+              title="Opprett førespursel"
+            >
+              <Link href="/slikkepinne">
+                <Candy className="w-4 h-4 mr-2" />
+                Slikkepinne
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              asChild
+              className="h-11 w-11 bg-transparent active:scale-95"
+              title="Om tenesta"
+            >
+              <Link href="/om-tenesta">
+                <Info className="w-5 h-5" />
+                <span className="sr-only">Om tenesta</span>
+              </Link>
             </Button>
             <Button
               variant="outline"
