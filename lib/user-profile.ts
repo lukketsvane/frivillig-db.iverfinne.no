@@ -176,7 +176,7 @@ export async function getOrCreateUserProfile(userId: string): Promise<UserProfil
 export async function updateUserProfileFromMessage(
   userId: string,
   message: string,
-  location?: { poststed?: string; kommune?: string; fylke?: string; lat?: number; lng?: number }
+  location?: { poststed?: string; kommune?: string; fylke?: string; lat?: number; lng?: number; latitude?: number; longitude?: number }
 ): Promise<void> {
   const supabase = await createClient()
 
@@ -214,8 +214,12 @@ export async function updateUserProfileFromMessage(
     if (location.poststed) updates.location_poststed = location.poststed
     if (location.kommune) updates.location_kommune = location.kommune
     if (location.fylke) updates.location_fylke = location.fylke
-    if (location.lat) updates.location_lat = location.lat
-    if (location.lng) updates.location_lng = location.lng
+
+    const lat = location.lat ?? location.latitude
+    const lng = location.lng ?? location.longitude
+
+    if (typeof lat === "number") updates.location_lat = lat
+    if (typeof lng === "number") updates.location_lng = lng
   }
 
   // Merge interests
@@ -246,8 +250,7 @@ export async function updateUserProfileFromMessage(
 
 // Generate personalized example prompts based on user profile
 export function generatePersonalizedPrompts(profile: UserProfile | null): string[] {
-  if (!profile || profile.conversation_count < 2) {
-    // Return default prompts for new users
+  if (!profile) {
     return []
   }
 
@@ -316,4 +319,28 @@ export async function getClientUserProfile(userId: string): Promise<UserProfile 
   }
 
   return data as UserProfile
+}
+
+export async function updateUserProfileLocation(
+  userId: string,
+  location: { poststed?: string; kommune?: string; fylke?: string; lat?: number; lng?: number; latitude?: number; longitude?: number },
+) {
+  const supabase = createBrowserClient()
+
+  const { error } = await supabase.from("user_profiles").upsert(
+    {
+      user_id: userId,
+      location_poststed: location.poststed,
+      location_kommune: location.kommune,
+      location_fylke: location.fylke,
+      location_lat: location.lat ?? location.latitude,
+      location_lng: location.lng ?? location.longitude,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  )
+
+  if (error) {
+    console.error("Error updating user location:", error)
+  }
 }
