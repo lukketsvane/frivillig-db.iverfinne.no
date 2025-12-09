@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import type { Metadata } from "next"
+import type { Organization } from "@/lib/slikkepinne/types"
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -31,35 +32,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   } catch {
     return { title: "Organisasjon ikkje funnen" }
   }
-}
-
-interface Organization {
-  id: string
-  navn: string
-  fylke: string | null
-  forretningsadresse_poststed: string | null
-  forretningsadresse_postnummer: string | null
-  forretningsadresse_kommune: string | null
-  forretningsadresse_adresse: string[] | null
-  postadresse_adresse: string[] | null
-  postadresse_postnummer: string | null
-  postadresse_poststed: string | null
-  registrert_i_frivillighetsregisteret: boolean | null
-  vedtektsfestet_formaal: string | null
-  aktivitet: string | null
-  hjemmeside: string | null
-  epost: string | null
-  telefon: string | null
-  mobiltelefon: string | null
-  organisasjonsform_beskrivelse: string | null
-  organisasjonsnummer: string | null
-  antall_ansatte: number | null
-  naeringskode1_beskrivelse: string | null
-  stiftelsesdato: string | null
-  registreringsdato_frivillighetsregisteret: string | null
-  registrert_i_mvaregisteret: boolean | null
-  registrert_i_foretaksregisteret: boolean | null
-  registrert_i_stiftelsesregisteret: boolean | null
 }
 
 export default async function OrgPage({ params }: { params: Promise<{ id: string }> }) {

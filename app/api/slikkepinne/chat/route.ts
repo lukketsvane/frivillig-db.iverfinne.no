@@ -3,9 +3,42 @@ import { streamText } from "ai"
 
 export const maxDuration = 30
 
+interface ChatMessage {
+  role: "user" | "assistant" | "system"
+  content: string
+}
+
+function isValidMessages(messages: unknown): messages is ChatMessage[] {
+  if (!Array.isArray(messages)) return false
+  return messages.every(
+    (msg) =>
+      typeof msg === "object" &&
+      msg !== null &&
+      typeof msg.role === "string" &&
+      ["user", "assistant", "system"].includes(msg.role) &&
+      typeof msg.content === "string" &&
+      msg.content.length <= 10000
+  )
+}
+
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json()
+    const body = await req.json()
+    const { messages } = body
+
+    if (!isValidMessages(messages)) {
+      return new Response(JSON.stringify({ error: "Invalid messages format" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    if (messages.length > 50) {
+      return new Response(JSON.stringify({ error: "Too many messages" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
 
     const result = streamText({
       model: openai("gpt-4o-mini"),
