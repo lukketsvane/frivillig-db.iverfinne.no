@@ -1,16 +1,7 @@
-import { RequestWizard } from "@/components/slikkepinne/request-wizard"
-import type { Metadata } from "next"
-import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
+"use client"
 
-export const metadata: Metadata = {
-  title: "Frivillig Hjelp - Opprett forespørsel",
-  description: "Opprett en forespørsel om frivillig hjelp og del QR-koden",
-  openGraph: {
-    title: "Frivillig Hjelp - Opprett forespørsel",
-    description: "Opprett en forespørsel om frivillig hjelp og del QR-koden",
-    type: "website",
-  },
-}
+import { RequestWizard } from "@/components/slikkepinne/request-wizard"
+import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 
 export default function SlikkepinnePage() {
   return (

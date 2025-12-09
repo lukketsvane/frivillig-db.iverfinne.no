@@ -1,14 +1,10 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft } from "lucide-react"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
-import type { Metadata } from "next"
-
-export const metadata: Metadata = {
-  title: "Om tenesta - Frivillig-DB",
-  description: "Lær om korleis Frivillig-DB fungerer og korleis me revolutionerer frivillighetsrekruttering",
-}
 
 export default function OmTenestaPage() {
   return (
