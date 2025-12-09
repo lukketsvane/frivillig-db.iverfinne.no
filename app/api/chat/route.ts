@@ -1,6 +1,14 @@
 import { streamText, convertToCoreMessages } from "ai"
+import { google } from "@ai-sdk/google"
 import { searchOrganizations, formatOrganizationForChat, createOrganizationCards } from "@/lib/organization-search"
 import { identifyLifeStage, generateStageGuidance } from "@/lib/erikson-theory"
+import { getUser } from "@/lib/auth"
+import {
+  getOrCreateUserProfile,
+  updateUserProfileFromMessage,
+  extractInterests,
+  inferAgeFromText,
+} from "@/lib/user-profile"
 
 export const maxDuration = 30
 
@@ -15,9 +23,54 @@ export async function POST(req: Request) {
   console.log("[v0] User message:", userMessageText)
   console.log("[v0] User location:", userLocation)
 
+  // Get authenticated user and their profile
+  let userProfile = null
+  let userId: string | null = null
+  try {
+    const user = await getUser()
+    if (user) {
+      userId = user.id
+      userProfile = await getOrCreateUserProfile(user.id)
+
+      // Update profile with new knowledge from this message
+      await updateUserProfileFromMessage(user.id, userMessageText, userLocation)
+    }
+  } catch (error) {
+    console.log("[v0] No authenticated user or profile error:", error)
+  }
+
+  // Build personalized context from profile
+  let profileContext = ""
+  if (userProfile) {
+    const profileParts: string[] = []
+
+    if (userProfile.age_range) {
+      profileParts.push(`Brukaraldar: ${userProfile.age_range}`)
+    }
+    if (userProfile.location_kommune || userProfile.location_fylke) {
+      profileParts.push(`Brukarstad: ${userProfile.location_kommune || userProfile.location_fylke}`)
+    }
+    if (userProfile.interests && userProfile.interests.length > 0) {
+      profileParts.push(`Interesser: ${userProfile.interests.join(", ")}`)
+    }
+    if (userProfile.skills && userProfile.skills.length > 0) {
+      profileParts.push(`Ferdigheiter: ${userProfile.skills.join(", ")}`)
+    }
+    if (userProfile.life_stage) {
+      profileParts.push(`Livsfase: ${userProfile.life_stage}`)
+    }
+
+    if (profileParts.length > 0) {
+      profileContext = `\n\n📊 BRUKARPROFIL (lært frå tidlegare samtalar):\n${profileParts.join("\n")}\n`
+    }
+  }
+
   // Identify life stage based on Erikson's theory
   const lifeStage = identifyLifeStage(userMessageText)
   const stageGuidance = lifeStage ? generateStageGuidance(lifeStage) : ""
+
+  // Check for age in message and update if found
+  const { age } = inferAgeFromText(userMessageText)
 
   const locationPatterns = [
     /i\s+([A-ZÆØÅ][a-zæøå]+(?:\s+og\s+[A-ZÆØÅ][a-zæøå]+)?)/i,
@@ -34,42 +87,18 @@ export async function POST(req: Request) {
     }
   }
 
-  const interests: string[] = []
-  const interestKeywords = [
-    "mentor",
-    "leiing",
-    "leiar",
-    "IT",
-    "teknologi",
-    "naturvern",
-    "miljø",
-    "kultur",
-    "musikk",
-    "idrett",
-    "helse",
-    "friluft",
-    "barn",
-    "unge",
-    "eldre",
-    "innvandrar",
-    "flyktning",
-    "mat",
-    "matsvinn",
-    "dyrevelferd",
-    "menneskerettar",
-    "frivillig",
-    "undervisning",
-    "kompetanse",
-  ]
-
-  for (const keyword of interestKeywords) {
-    if (userMessageText.toLowerCase().includes(keyword.toLowerCase())) {
-      interests.push(keyword)
-    }
+  // Use profile location as fallback
+  if (!location && userProfile?.location_kommune) {
+    location = userProfile.location_kommune
   }
 
+  // Extract interests from message + profile
+  const messageInterests = extractInterests(userMessageText)
+  const profileInterests = userProfile?.interests || []
+  const allInterests = [...new Set([...messageInterests, ...profileInterests])]
+
   console.log("[v0] Detected location:", location)
-  console.log("[v0] Detected interests:", interests)
+  console.log("[v0] Detected interests:", allInterests)
 
   let organizationsContext = ""
   let foundOrganizations: any[] = []
@@ -78,11 +107,11 @@ export async function POST(req: Request) {
   try {
     const organizations = await searchOrganizations({
       location,
-      interests: interests.length > 0 ? interests : undefined,
+      interests: allInterests.length > 0 ? allInterests : undefined,
       limit: 500,
-      userPostnummer: userLocation?.postnummer,
-      userKommune: userLocation?.kommune,
-      userFylke: userLocation?.fylke,
+      userPostnummer: userLocation?.postnummer || userProfile?.location_poststed,
+      userKommune: userLocation?.kommune || userProfile?.location_kommune,
+      userFylke: userLocation?.fylke || userProfile?.location_fylke,
     })
 
     foundOrganizations = organizations
@@ -105,9 +134,11 @@ export async function POST(req: Request) {
     console.error("[v0] Error fetching organizations:", error)
   }
 
-  const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg. 
+  const systemPrompt = `Du er ein hjelpsam assistent som hjelper folk med å finne frivilligorganisasjonar i Noreg.
 
 Du kommuniserer på nynorsk og gir direkte, konkrete svar.
+
+${profileContext}
 
 ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
 
@@ -128,10 +159,13 @@ EKSEMPEL PÅ RIKTIG SVAR:
 - [137 Aktiv](https://frivillig-db.iverfinne.no/organisasjon/abc-123-xyz) er perfekt for turinteresserte
 - [Oslo Turlag](https://frivillig-db.iverfinne.no/organisasjon/def-456-uvw) har turar kvar helg"
 
+${userProfile ? `Hugs: Brukaren har vist interesse for ${userProfile.interests?.slice(0, 3).join(", ") || "frivilligarbeid generelt"}. Tilpass svaret ditt.` : ""}
+
 Ver kort og direkte (maksimum 3-4 setningar).`
 
+  // Use Gemini 2.0 Flash - the latest and fastest model
   const result = streamText({
-    model: "openai/gpt-4o-mini",
+    model: google("gemini-2.0-flash"),
     messages: coreMessages,
     abortSignal: req.signal,
     system: systemPrompt,
