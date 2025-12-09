@@ -100,14 +100,7 @@ export default function UtforskPage() {
   }
 
   const fetchOrganizations = useCallback(async (sok?: string, stad?: string, location?: any) => {
-    if (!sok && !stad) {
-      setHasSearched(false)
-      setTopResults([])
-      setAllResults([])
-      setIsSearching(false)
-      return
-    }
-
+    // Always fetch organizations, even without search query
     setHasSearched(true)
     setIsSearching(true)
 
@@ -139,13 +132,19 @@ export default function UtforskPage() {
     if (storedLocation) {
       try {
         const location = JSON.parse(storedLocation)
+        // Always load organizations on initial load, sorted by proximity if location is available
+        fetchOrganizations(undefined, undefined, location)
         if (location.fylke) {
           setLocationQuery(location.fylke)
-          fetchOrganizations(undefined, location.fylke, location)
         }
       } catch (error) {
         console.error("[v0] Error parsing stored location:", error)
+        // Even without location, load some organizations
+        fetchOrganizations(undefined, undefined, null)
       }
+    } else {
+      // Load organizations even without location
+      fetchOrganizations(undefined, undefined, null)
     }
   }, [])
 
@@ -274,13 +273,25 @@ export default function UtforskPage() {
               </>
             )}
 
+            {!isSearching && hasSearched && allResults.length === 0 && (
+              <Card className="border-2">
+                <CardContent className="py-12 text-center">
+                  <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-lg font-medium mb-2">Ingen resultat funne</p>
+                  <p className="text-sm text-muted-foreground">
+                    Prøv eit anna søkjeord eller stad
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {!hasSearched && (
               <Card className="border-2">
                 <CardContent className="py-12 text-center">
                   <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Søk etter frivilligorganisasjonar</p>
+                  <p className="text-lg font-medium mb-2">Lastar organisasjonar...</p>
                   <p className="text-sm text-muted-foreground">
-                    Skriv inn aktivitet, interesser eller stad for å starte
+                    Vent litt medan me hentar data
                   </p>
                 </CardContent>
               </Card>

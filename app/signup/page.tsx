@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, Mail, Lock, User, Loader2 } from "lucide-react"
+import { ArrowLeft, Mail, Lock, User, Loader2, Chrome } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 
@@ -57,6 +57,28 @@ export default function SignupPage() {
 
     setMessage("Sjekk e-posten din for å stadfeste kontoen!")
     setIsLoading(false)
+  }
+
+  const handleGoogleSignup = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    const supabase = createClient()
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      setError(error.message)
+      setIsLoading(false)
+      return
+    }
+
+    // OAuth redirect will happen automatically
   }
 
   return (
@@ -188,6 +210,35 @@ export default function SignupPage() {
             )}
           </Button>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-card px-2 text-muted-foreground">eller</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-11"
+          onClick={handleGoogleSignup}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Logger inn...
+            </>
+          ) : (
+            <>
+              <Chrome className="w-4 h-4 mr-2" />
+              Registrer deg med Google
+            </>
+          )}
+        </Button>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Har du allereie konto?{" "}

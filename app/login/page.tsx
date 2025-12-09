@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react"
+import { ArrowLeft, Mail, Lock, Loader2, Chrome } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
 
@@ -66,6 +66,28 @@ function LoginForm() {
 
     setMessage("Sjekk e-posten din for innloggingslenke!")
     setIsLoading(false)
+  }
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    const supabase = createClient()
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      setError(error.message)
+      setIsLoading(false)
+      return
+    }
+
+    // OAuth redirect will happen automatically
   }
 
   return (
@@ -151,6 +173,26 @@ function LoginForm() {
           <span className="bg-card px-2 text-muted-foreground">eller</span>
         </div>
       </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-11 mb-3"
+        onClick={handleGoogleLogin}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Logger inn...
+          </>
+        ) : (
+          <>
+            <Chrome className="w-4 h-4 mr-2" />
+            Logg inn med Google
+          </>
+        )}
+      </Button>
 
       <Button
         type="button"
