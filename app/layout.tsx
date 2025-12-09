@@ -44,21 +44,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="nn">
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const theme = localStorage.getItem('theme');
-                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (theme === 'dark' || (!theme && systemPrefersDark)) {
-                  document.documentElement.classList.add('dark');
-                }
-              })();
-            `,
-          }}
-        />
-      </head>
       <body className={`font-sans antialiased ${_geist.className}`}>
         {children}
         <Analytics />

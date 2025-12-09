@@ -1,103 +1,67 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   /* Frivillig brand colors */
-  --purple-header-app: #7F4ACF;
-  --purple-header-web: #542F76;
-  --purple-qr: #6C38C5;
-  --purple-progress-bg: #A68ED9;
-  --bg-green-light: #D1F2B8;
-  --bg-cream: #FDF8E1;
-  --bg-yellow-intense: #F8F295;
-  --bg-white: #FFFFFF;
-  --btn-green-olive: #6B8E23;
-  --btn-orange-peach: #FBC085;
-  --accent-orange: #FF7F50;
-  --text-standard: #212529;
-  --text-blue-deep: #363062;
+  --color-yellow-lime: #EDF455;
+  --color-cream: #FEFAEB;
+  --color-purple-deep: #27085E;
+  --color-black: #020202;
+  --color-red: #E84232;
+  --color-teal: #48A0AD;
+  --color-purple-dark: #45275D;
+  --color-orange: #DE9852;
+  --color-olive: #99A65F;
+  --color-mint: #1ABAA4;
+  --color-white: #FFFFFF;
+  --color-blue: #3B64EC;
+  --color-pink: #E3A7A6;
+  --color-slate: #45556C;
+  --color-coral: #FF6467;
+  --color-purple-bright: #9810FA;
+  --color-gold: #F0B100;
+  --color-yellow-soft: #FFF085;
+  --color-peach: #F3CD96;
+  --color-rose: #A85D5F;
+  --color-navy: #0F172B;
+  --color-gray: #62748E;
+  --color-charcoal: #2D2D2D;
+  --color-silver: #CAD5E2;
 
-  /* Dark mode brand colors */
-  --bg-purple-darkest: #1a1625;
-  --bg-purple-dark: #2d2640;
-  --bg-purple-medium: #3d3455;
-  --bg-green-sage: #8FBC8F;
-
-  /* Light mode - cream/yellow tones */
-  --background: var(--bg-cream);
-  --foreground: var(--text-standard);
-  --card: var(--bg-white);
-  --card-foreground: var(--text-standard);
-  --popover: var(--bg-white);
-  --popover-foreground: var(--text-standard);
-  --primary: var(--purple-header-app);
-  --primary-foreground: var(--bg-white);
-  --secondary: var(--bg-green-light);
-  --secondary-foreground: var(--text-standard);
-  --muted: var(--bg-yellow-intense);
-  --muted-foreground: var(--text-blue-deep);
-  --accent: var(--purple-progress-bg);
-  --accent-foreground: var(--text-standard);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: var(--bg-white);
-  --border: var(--purple-progress-bg);
-  --input: var(--bg-white);
-  --ring: var(--purple-header-app);
-  --chart-1: var(--purple-header-app);
-  --chart-2: var(--btn-green-olive);
-  --chart-3: var(--purple-header-web);
-  --chart-4: var(--btn-orange-peach);
-  --chart-5: var(--accent-orange);
-  --radius: 0rem; /* removed border radius */
-  --sidebar: var(--bg-white);
-  --sidebar-foreground: var(--text-standard);
-  --sidebar-primary: var(--purple-header-app);
-  --sidebar-primary-foreground: var(--bg-white);
-  --sidebar-accent: var(--bg-green-light);
-  --sidebar-accent-foreground: var(--text-standard);
-  --sidebar-border: var(--purple-progress-bg);
-  --sidebar-ring: var(--purple-header-app);
-
-  /* Add smooth transition for theme switching */
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.dark {
-  /* Dark mode - deeper purple/dark tones with brand accents */
-  --background: var(--bg-purple-darkest);
-  --foreground: var(--bg-cream);
-  --card: var(--bg-purple-dark);
-  --card-foreground: var(--bg-cream);
-  --popover: var(--bg-purple-dark);
-  --popover-foreground: var(--bg-cream);
-  --primary: var(--purple-progress-bg);
-  --primary-foreground: var(--bg-purple-darkest);
-  --secondary: var(--bg-purple-medium);
-  --secondary-foreground: var(--bg-cream);
-  --muted: var(--bg-purple-medium);
-  --muted-foreground: var(--purple-progress-bg);
-  --accent: var(--purple-header-web);
-  --accent-foreground: var(--bg-cream);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: var(--bg-cream);
-  --border: var(--purple-header-web);
-  --input: var(--bg-purple-medium);
-  --ring: var(--purple-progress-bg);
-  --chart-1: var(--purple-progress-bg);
-  --chart-2: var(--bg-green-sage);
-  --chart-3: var(--purple-header-app);
-  --chart-4: var(--btn-orange-peach);
-  --chart-5: var(--accent-orange);
-  --sidebar: var(--bg-purple-dark);
-  --sidebar-foreground: var(--bg-cream);
-  --sidebar-primary: var(--purple-progress-bg);
-  --sidebar-primary-foreground: var(--bg-cream);
-  --sidebar-accent: var(--bg-purple-medium);
-  --sidebar-accent-foreground: var(--bg-cream);
-  --sidebar-border: var(--purple-header-web);
-  --sidebar-ring: var(--purple-progress-bg);
+  /* Theme colors */
+  --background: var(--color-cream);
+  --foreground: var(--color-black);
+  --card: var(--color-white);
+  --card-foreground: var(--color-black);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-black);
+  --primary: var(--color-purple-deep);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-yellow-lime);
+  --secondary-foreground: var(--color-black);
+  --muted: var(--color-silver);
+  --muted-foreground: var(--color-slate);
+  --accent: var(--color-purple-bright);
+  --accent-foreground: var(--color-white);
+  --destructive: var(--color-red);
+  --destructive-foreground: var(--color-white);
+  --border: var(--color-purple-dark);
+  --input: var(--color-white);
+  --ring: var(--color-purple-deep);
+  --chart-1: var(--color-purple-deep);
+  --chart-2: var(--color-teal);
+  --chart-3: var(--color-orange);
+  --chart-4: var(--color-mint);
+  --chart-5: var(--color-coral);
+  --radius: 0rem;
+  --sidebar: var(--color-white);
+  --sidebar-foreground: var(--color-black);
+  --sidebar-primary: var(--color-purple-deep);
+  --sidebar-primary-foreground: var(--color-white);
+  --sidebar-accent: var(--color-yellow-lime);
+  --sidebar-accent-foreground: var(--color-black);
+  --sidebar-border: var(--color-purple-dark);
+  --sidebar-ring: var(--color-purple-deep);
 }
 
 @theme inline {
@@ -207,18 +171,6 @@
 
   .prose a:hover {
     text-decoration: underline !important;
-  }
-
-  .dark .prose {
-    @apply text-foreground;
-  }
-
-  .dark .prose a {
-    @apply text-primary;
-  }
-
-  .dark .prose strong {
-    @apply text-foreground;
   }
 
   /* Add iOS-style animations */
