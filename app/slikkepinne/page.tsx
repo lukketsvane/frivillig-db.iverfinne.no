@@ -60,7 +60,7 @@ export default function SlikkepinnePage() {
       </div>
 
       {/* Card container - matching main page style */}
-      <Card className="w-full max-w-md h-[600px] max-h-[85vh] flex flex-col shadow-lg overflow-hidden">
+      <Card className="w-full max-w-4xl h-[600px] max-h-[85vh] flex flex-col shadow-xl overflow-hidden bg-background/80 backdrop-blur border border-white/10">
         {/* Header - matching main page */}
         <div className="border-b px-4 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
