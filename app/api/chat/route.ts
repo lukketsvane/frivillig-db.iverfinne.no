@@ -32,8 +32,16 @@ export async function POST(req: Request) {
       userId = user.id
       userProfile = await getOrCreateUserProfile(user.id)
 
+      const normalizedLocation = userLocation
+        ? {
+            ...userLocation,
+            lat: userLocation.lat ?? userLocation.latitude,
+            lng: userLocation.lng ?? userLocation.longitude,
+          }
+        : undefined
+
       // Update profile with new knowledge from this message
-      await updateUserProfileFromMessage(user.id, userMessageText, userLocation)
+      await updateUserProfileFromMessage(user.id, userMessageText, normalizedLocation)
     }
   } catch (error) {
     console.log("[v0] No authenticated user or profile error:", error)
@@ -88,6 +96,10 @@ export async function POST(req: Request) {
   }
 
   // Use profile location as fallback
+  if (!location && (userLocation?.kommune || userLocation?.poststed)) {
+    location = userLocation?.kommune || userLocation?.poststed
+  }
+
   if (!location && userProfile?.location_kommune) {
     location = userProfile.location_kommune
   }
@@ -138,6 +150,8 @@ export async function POST(req: Request) {
 
 Du kommuniserer på nynorsk og gir direkte, konkrete svar.
 
+Start alltid med å få eit klart bilete av kven brukaren er: om alder ikkje er kjent, be kort om aldersgruppe (t.d. "Kva aldersgruppe er du i?"). Dersom du ikkje har stad, be høfleg om by/kommune slik at du kan tilpasse anbefalingane.
+
 ${profileContext}
 
 ${stageGuidance ? `Livsfasevurdering: ${stageGuidance}` : ""}
@@ -163,9 +177,9 @@ ${userProfile ? `Hugs: Brukaren har vist interesse for ${userProfile.interests?.
 
 Ver kort og direkte (maksimum 3-4 setningar).`
 
-  // Use Gemini 2.0 Flash - the latest and fastest model
+  // Always use the latest Gemini 3 Pro model
   const result = streamText({
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-3.0-pro"),
     messages: coreMessages,
     abortSignal: req.signal,
     system: systemPrompt,
