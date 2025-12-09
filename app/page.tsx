@@ -14,6 +14,7 @@ import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
+import { AuthMenu } from "@/components/auth-menu"
 
 interface MessageWithAttachments {
   id: string
@@ -288,7 +289,8 @@ export default function ChatPage() {
               {isAgentMode ? "agent-modus" : "frivillig-db"}
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <AuthMenu />
             <Button variant="outline" size="sm" asChild className="h-11 bg-transparent active:scale-95">
               <Link href="/utforsk">Utforsk alle</Link>
             </Button>
