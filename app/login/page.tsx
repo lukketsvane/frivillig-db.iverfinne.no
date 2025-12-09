@@ -38,7 +38,6 @@ function LoginForm() {
     }
 
     router.push("/")
-    router.refresh()
   }
 
   const handleMagicLink = async () => {
