@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     if (qdrantAvailable && userMessageText.trim()) {
       console.log("[v0] Using Qdrant vector search with user profile")
       // searchOrganizationsVector combines user message with top 3 interests from profile
-      const qdrantResults = await searchOrganizationsVector(userMessageText, searchProfile, 15)
+      const qdrantResults = await searchOrganizationsVector(userMessageText, searchProfile, 5)
       
       if (qdrantResults.length > 0) {
         // Map Qdrant results to Organization interface using helper function
@@ -150,22 +150,22 @@ export async function POST(req: Request) {
         userPostnummer: userLocation?.postnummer || userProfile?.location_poststed,
         userKommune: userLocation?.kommune || userProfile?.location_kommune,
       })
-      foundOrganizations = organizations.slice(0, 15)
+      foundOrganizations = organizations.slice(0, 5)
     }
 
     console.log("[v0] Found organizations:", foundOrganizations.length)
 
     if (foundOrganizations.length > 0) {
-      // Only show top 15 organizations in the prompt (not 500!)
-      organizationList = "\n\n=== GYLDIGE ORGANISASJONAR (KUN DESSE 15 FINST I DATABASEN) ===\n"
-      foundOrganizations.slice(0, 15).forEach((org, index) => {
+      // Only show top 5 organizations in the prompt
+      organizationList = "\n\n=== GYLDIGE ORGANISASJONAR (KUN DESSE 5 FINST I DATABASEN) ===\n"
+      foundOrganizations.slice(0, 5).forEach((org, index) => {
         organizationList += `${index + 1}. "${org.navn}" (ID: ${org.id})\n`
         organizationList += `   URL: https://frivillig-db.iverfinne.no/organisasjon/${org.id}\n`
       })
       organizationList += "=== SLUTT PÅ LISTE ===\n\n"
 
-      organizationsContext = "\n\nRelevante frivilligorganisasjonar (topp 15 treff):\n"
-      foundOrganizations.slice(0, 15).forEach((org) => {
+      organizationsContext = "\n\nRelevante frivilligorganisasjonar (topp 5 treff):\n"
+      foundOrganizations.slice(0, 5).forEach((org) => {
         organizationsContext += formatOrganizationForChat(org)
       })
     }
@@ -189,12 +189,12 @@ ${organizationsContext ? `${organizationsContext}` : ""}
 
 🚨 KRITISKE REGLAR - BRYT ALDRI DESSE:
 
-1. Du KAN KUN nemne organisasjonar som er lista ovanfor i "GYLDIGE ORGANISASJONAR" (maks 15 stk)
+1. Du KAN KUN nemne organisasjonar som er lista ovanfor i "GYLDIGE ORGANISASJONAR" (maks 5 stk)
 2. ALDRI finn på organisasjononsnamn eller ID-ar som ikkje er i lista
 3. Når du nemner ein organisasjon, bruk markdown-lenkje med ID frå lista: [Organisasjonsnamn](https://frivillig-db.iverfinne.no/organisasjon/ID)
 4. Om du ikkje finn relevante organisasjonar i lista, sei det ærleg: "Eg fann ingen perfekt match, men her er organisasjonar i området..."
 5. ALDRI kopier/lim inn ID-ar feil - sjekk nøye at ID-en matcher organisasjonsnamnet
-6. Vel dei 2-4 mest relevante organisasjonane frå lista basert på brukaren sine behov
+6. Vel dei 2-5 mest relevante organisasjonane frå lista basert på brukaren sine behov
 
 EKSEMPEL PÅ RIKTIG SVAR:
 "Eg fann desse organisasjonane for deg:
