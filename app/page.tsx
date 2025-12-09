@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText, Candy, Info } from "lucide-react"
+import { ArrowUp, MapPin, HelpCircle, Paperclip, X, FileText } from "lucide-react"
 import { useRef, useEffect, useState } from "react"
 import { OrganizationCard } from "@/components/organization-card"
 import type { OrganizationCardData } from "@/lib/organization-search"
@@ -295,30 +295,6 @@ export default function ChatPage() {
             </Button>
             <Button
               variant="outline"
-              size="sm"
-              asChild
-              className="h-11 bg-transparent active:scale-95"
-              title="Opprett førespursel"
-            >
-              <Link href="/slikkepinne">
-                <Candy className="w-4 h-4 mr-2" />
-                Slikkepinne
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-lg"
-              asChild
-              className="h-11 w-11 bg-transparent active:scale-95"
-              title="Om tenesta"
-            >
-              <Link href="/om-tenesta">
-                <Info className="w-5 h-5" />
-                <span className="sr-only">Om tenesta</span>
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
               size="icon-lg"
               asChild
               className="h-11 w-11 bg-transparent active:scale-95"
@@ -552,6 +528,14 @@ export default function ChatPage() {
               <span className="sr-only">Send</span>
             </Button>
           </form>
+          <div className="mt-2 flex gap-3 justify-center">
+            <Link href="/slikkepinne" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              slikkepinne
+            </Link>
+            <Link href="/om-tenesta" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              om tenesta
+            </Link>
+          </div>
         </div>
       </Card>
     </div>
