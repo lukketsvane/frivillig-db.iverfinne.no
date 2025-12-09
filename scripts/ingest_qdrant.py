@@ -10,9 +10,11 @@ Usage:
 
 Environment Variables:
     GOOGLE_API_KEY: Google AI API key for generating embeddings
+    QDRANT_URL: Qdrant Cloud URL (optional, defaults to localhost)
+    QDRANT_API_KEY: Qdrant Cloud API key (optional, not needed for localhost)
 
 Requirements:
-    pip install google-generativeai qdrant-client
+    pip install google-generativeai qdrant-client python-dotenv
 """
 
 import json
@@ -20,6 +22,13 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
+
+# Load environment variables from .env file for local development
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, rely on system env vars
 
 try:
     import google.generativeai as genai
@@ -30,17 +39,35 @@ try:
         VectorParams,
     )
 except ImportError as e:
-    print(f"Missing required packages. Install with: pip install google-generativeai qdrant-client")
+    print(f"Missing required packages. Install with: pip install google-generativeai qdrant-client python-dotenv")
     print(f"Error: {e}")
     sys.exit(1)
 
 # Configuration
-QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
+# Support Qdrant Cloud via QDRANT_URL and QDRANT_API_KEY, fallback to localhost
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 COLLECTION_NAME = "frivillig_orgs"
 EMBEDDING_MODEL = "models/text-embedding-004"
 EMBEDDING_DIMENSION = 768  # Dimension for text-embedding-004
 BATCH_SIZE = 100  # Number of points to upsert at a time
+
+
+def get_qdrant_client() -> QdrantClient:
+    """
+    Create Qdrant client with support for both cloud and local instances.
+    - If QDRANT_URL is set, connect to Qdrant Cloud with API key
+    - Otherwise, fallback to localhost:6333
+    """
+    if QDRANT_URL:
+        print("Connecting to Qdrant Cloud...")
+        return QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY,
+        )
+    else:
+        print("Connecting to local Qdrant at localhost:6333")
+        return QdrantClient(host="localhost", port=6333)
 
 
 def get_google_api_key() -> str:
@@ -237,9 +264,8 @@ def main():
     genai.configure(api_key=api_key)
     print("✓ Google AI configured")
     
-    # Setup Qdrant client
-    print(f"Connecting to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}...")
-    client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+    # Setup Qdrant client (supports both cloud and local)
+    client = get_qdrant_client()
     print("✓ Connected to Qdrant")
     
     # Setup collection
