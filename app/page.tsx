@@ -14,6 +14,7 @@ import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Shader, SolidColor, Pixelate, SineWave } from "shaders/react"
+import { UserMenu } from "@/components/user-menu"
 
 interface MessageWithAttachments {
   id: string
@@ -318,6 +319,7 @@ export default function ChatPage() {
               <MapPin className="w-5 h-5" />
               <span className="sr-only">Plassering</span>
             </Button>
+            <UserMenu />
           </div>
         </div>
 
